@@ -83,7 +83,7 @@
   }
   function loadLang(code) {
     if (code === 'en') { TR = {}; return Promise.resolve(); }
-    var v = (S.arch && S.arch.version) || '';
+    var v = (S.arch && (S.arch.assetVersion || S.arch.version)) || '';
     return fetch('lang/' + code + '.json?v=' + encodeURIComponent(v)).then(function (r) {
       if (!r.ok) throw new Error(r.status);
       return r.json();

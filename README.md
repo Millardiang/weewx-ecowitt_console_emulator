@@ -346,6 +346,12 @@ again.
 
 ## Troubleshooting
 
+* **Something new after an update doesn't appear** (e.g. the year list on the
+  charts' Year tab) – restart WeeWX (`sudo systemctl restart weewx`): until then it
+  keeps running the previous version of the skin's code, and the page's data
+  (`ecowitt.json`) is still the old kind. The page's script, styles and
+  translations are linked with a fingerprint of their contents, so browsers load
+  the new copies as soon as WeeWX has rewritten the page.
 * **Wi-Fi icon yellow** – live data isn't arriving. With the skin's own
   `live.json`, check that `[EcowittConsoleEmulator] enable = true` and look for
   `ecowitt_console_emulator: ... writing live data to ...` in the log. With

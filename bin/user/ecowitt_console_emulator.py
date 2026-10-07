@@ -44,6 +44,8 @@ EcowittConsoleEmulatorLive
     available to the web server. Writes the latest loop data to live.json.
 """
 
+import glob
+import hashlib
 import json
 import logging
 import math
@@ -214,6 +216,22 @@ def _month_start(ts, back=0):
         m += 12
         y -= 1
     return int(time.mktime((y, m, 1, 0, 0, 0, 0, 0, -1)))
+
+
+def _asset_version(skin_dir):
+    """Version tag for the page's script, styles and translations: the release plus a
+    fingerprint of the files themselves, so browsers fetch new copies after any update
+    (not only when the release number changes)."""
+    h = hashlib.sha1()
+    try:
+        files = [os.path.join(skin_dir, 'js', 'console.js'), os.path.join(skin_dir, 'css', 'console.css')]
+        files += sorted(glob.glob(os.path.join(skin_dir, 'lang', '*.json')))
+        for f in files:
+            with open(f, 'rb') as fh:
+                h.update(fh.read())
+    except (OSError, TypeError):
+        return VERSION
+    return '%s-%s' % (VERSION, h.hexdigest()[:8])
 
 
 def _years(db):
@@ -404,7 +422,12 @@ class EcowittConsoleEmulatorData(SearchList):
             if period != 'calyear' and not db.getRecord(stop):
                 stop = db.lastGoodStamp() or stop
             return self._chart_json(db, period, stop, timespan)
-        return [{'ecce_json': data_json, 'ecce_jv': _jv, 'ecce_version': VERSION, 'ecce_chart': chart}]
+        return [{'ecce_json': data_json, 'ecce_jv': _jv, 'ecce_version': self._asset_version(), 'ecce_chart': chart}]
+
+    def _asset_version(self):
+        sd = self.generator.skin_dict
+        skin_dir = os.path.join(self.generator.config_dict.get('WEEWX_ROOT', ''), sd.get('SKIN_ROOT', 'skins'), sd.get('skin', ''))
+        return _asset_version(skin_dir)
 
     def _dashboard_data(self, timespan, db):
         t0 = time.time()
@@ -568,6 +591,8 @@ class EcowittConsoleEmulatorData(SearchList):
             'config': self.cfg,
             # calendar years with data: chart_<year>.json, chosen on the charts' Year tab
             'chartYears': _years(db),
+            # the page fetches its translations with this tag, so updated ones are used at once
+            'assetVersion': self._asset_version(),
         }
         log.debug("ecowitt_console_emulator: built dashboard data in %.3fs", time.time() - t0)
         return data

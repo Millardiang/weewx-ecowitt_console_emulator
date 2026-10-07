@@ -52,7 +52,7 @@ Released under the GNU General Public License, version 3 or later (see LICENSE).
 - Every panel opens inside the dashboard, so the page never leaves full screen.
 
 ### Languages
-- Everything on the dashboard can be shown in 30 languages, : -
+- Everything on the dashboard can be shown in 30 languages, the same as weewx-divumwx:
   Arabic, Basque, Breton, Catalan, Chinese (simplified), Czech, Danish, Dutch, English,
   English (US), Finnish, French, German, Greek, Hindi, Hungarian, Icelandic, Italian,
   Japanese, Norwegian, Polish, Portuguese, Spanish, Swedish, Tamil, Thai, Turkish,
