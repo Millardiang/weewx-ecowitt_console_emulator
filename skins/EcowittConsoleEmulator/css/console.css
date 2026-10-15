@@ -1,5 +1,7 @@
 /* Copyright (c) Ian Millard 2026. GNU General Public License v3 or later; see LICENSE. */
-/* EcowittConsoleEmulator — laid out like the Ecowitt WH2560/HP2560 console, on a 1280×800 stage scaled to fit */
+/* EcowittConsoleEmulator — laid out like the Ecowitt WH2560/HP2560 console, on a 1280×800 stage scaled to fit.
+   On wider screens (Echo Show, 16:9 tablets) the landscape stage is made wider (--xw extra px,
+   set by the script) so it fills the width; the panels spread out over the extra space. */
 
 /* Navy: deep enough that the whole temperature colour scale (incl. blue/violet)
    keeps >= 3.8:1 contrast; text >= 10:1 */
@@ -75,11 +77,12 @@ html, body {
 /* The stage is drawn at a fixed design size and scaled to the screen. #sizer has
    the scaled size so the page scrolls correctly when the stage is taller than the
    screen (phone layout). */
-#viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+/* top/right/bottom/left rather than 'inset' (not in older browsers, e.g. Silk on some Echo Shows) */
+#viewport { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   background: var(--bg); overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-#sizer { position: relative; flex: none; overflow: hidden; }
+#sizer { position: relative; flex: none; overflow: hidden; margin: 0 auto; }
 #stage {
-  position: absolute; left: 0; top: 0; width: 1280px; height: 800px;
+  position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: 800px;
   background: var(--bg-grad); transform-origin: 0 0; overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
@@ -93,12 +96,12 @@ section { position: absolute; }
 
 /* dividers, as on the console */
 .sep { position: absolute; background: var(--line); }
-#sep-h1 { left: 790px; top: 412px; width: 474px; height: 2px; }
-#sep-h2 { left: 790px; top: 604px; width: 474px; height: 2px; }
-#sep-v  { left: 776px; top: 424px; width: 2px; height: 310px; opacity: .7; }
+#sep-h1 { left: calc(790px + var(--xw, 0px)); top: 412px; width: 474px; height: 2px; }
+#sep-h2 { left: calc(790px + var(--xw, 0px)); top: 604px; width: 474px; height: 2px; }
+#sep-v  { left: calc(776px + var(--xw, 0px)); top: 424px; width: 2px; height: 310px; opacity: .7; }
 
 /* header */
-#hdr { position: absolute; left: 0; top: 0; width: 1280px; height: 60px; display: flex; align-items: center; padding: 0 22px; }
+#hdr { position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: 60px; display: flex; align-items: center; padding: 0 22px; }
 #hdr-l { display: flex; align-items: center; gap: 14px; width: 400px; flex: none; }
 #hdr-left { display: flex; align-items: center; gap: 14px; }
 #hdr-title { flex: 1; min-width: 0; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 16px; }
@@ -110,18 +113,18 @@ section { position: absolute; }
 #hdr-clock #time { display: inline-block; min-width: 140px; text-align: right; margin-left: 34px; }
 
 /* big gauges */
-#g-out { left: 18px; top: 62px; width: 340px; height: 340px; }
-#g-wind { left: 392px; top: 62px; width: 360px; height: 340px; }
+#g-out { left: calc(18px + var(--xw, 0px) * .24); top: 62px; width: 340px; height: 340px; }
+#g-wind { left: calc(392px + var(--xw, 0px) * .74); top: 62px; width: 360px; height: 340px; }
 
 /* right-hand top: soil / lightning, channel gauges */
-#rt-top { left: 790px; top: 66px; width: 474px; height: 64px; font-size: 19px; font-weight: 700; }
+#rt-top { left: calc(790px + var(--xw, 0px)); top: 66px; width: 474px; height: 64px; font-size: 19px; font-weight: 700; }
 #soil { position: absolute; left: 0; top: 4px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 #light { position: absolute; right: 0; top: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 #light .lines { display: flex; flex-direction: column; line-height: 1.25; font-size: 18px; }
-#g-ch { left: 790px; top: 136px; width: 474px; height: 272px; }
+#g-ch { left: calc(790px + var(--xw, 0px)); top: 136px; width: 474px; height: 272px; }
 
 /* stats + AQ */
-#stats { left: 8px; top: 424px; width: 764px; height: 62px; display: grid; grid-template-columns: repeat(var(--ncol, 7), 1fr); text-align: center; }
+#stats { left: 8px; top: 424px; width: calc(764px + var(--xw, 0px)); height: 62px; display: grid; grid-template-columns: repeat(var(--ncol, 7), 1fr); text-align: center; }
 /* labels too long to sit side by side (some languages): equal columns, labels fitted to them */
 #stats.tight { grid-template-columns: repeat(var(--ncol, 7), minmax(0, 1fr)); column-gap: 4px; }
 #stats > div { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
@@ -133,10 +136,10 @@ section { position: absolute; }
 .aqi-dot { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
 
 /* sun arc / moon */
-#sky { left: 0; top: 548px; width: 776px; height: 200px; }
+#sky { left: calc(var(--xw, 0px) / 2); top: 548px; width: 776px; height: 200px; }
 
 /* rain */
-#rain { left: 790px; top: 418px; width: 474px; height: 184px; }
+#rain { left: calc(790px + var(--xw, 0px)); top: 418px; width: 474px; height: 184px; }
 #rain .icon { position: absolute; left: 0; top: 30px; width: 96px; text-align: center; }
 #rain .src { display: inline-block; margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--fg-dim); border: 1.5px solid var(--line); border-radius: 10px; padding: 1px 9px; }
 #rain .rate { position: absolute; left: 112px; top: 14px; width: 180px; font-size: 20px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -150,7 +153,7 @@ section { position: absolute; }
 #rain .list .row span:last-child { flex: none; }
 
 /* barometer */
-#baro { left: 790px; top: 612px; width: 474px; height: 134px; }
+#baro { left: calc(790px + var(--xw, 0px)); top: 612px; width: 474px; height: 134px; }
 #baro .k { position: absolute; left: 0; top: 10px; font-size: 20px; font-weight: 700; color: var(--fg-dim); }
 #baro .reading { position: absolute; left: 0; top: 44px; white-space: nowrap; display: flex; align-items: baseline; gap: 10px; }
 #baro .mode { font-size: 22px; font-weight: 700; color: var(--fg-dim); }
@@ -161,7 +164,7 @@ section { position: absolute; }
 #baro .fc { position: absolute; right: -6px; top: 22px; }
 
 /* toolbar */
-#toolbar { position: absolute; left: 0; bottom: 0; width: 1280px; height: 50px; background: var(--toolbar); display: grid; grid-template-columns: repeat(6, 1fr); }
+#toolbar { position: absolute; left: 0; bottom: 0; width: calc(1280px + var(--xw, 0px)); height: 50px; background: var(--toolbar); display: grid; grid-template-columns: repeat(6, 1fr); }
 #toolbar button { appearance: none; background: none; border: 0; color: var(--toolbar-fg); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 #toolbar button:active { background: rgba(255,255,255,.15); }
 #toolbar svg { width: 28px; height: 28px; }
@@ -239,7 +242,7 @@ body[data-layout="phone"] #toolbar svg { width: 30px; height: 30px; }
    Full-screen panels: charts, radar, sensors, settings.
    They sit outside the scaled dashboard and fill the real screen.
    ===================================================================== */
-#overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; }
+#overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: var(--bg); display: flex; }
 #overlay[hidden] { display: none; }
 #ov-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-grad); color: var(--fg); }
 #ov-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;

@@ -7,6 +7,25 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [1.1.1] – 2026-10-15
+
+### Changed
+- New Auto theme, now the default: Light from sunrise to sunset and Black from sunset
+  to sunrise, switching by itself at the station's sunrise and sunset. The themes it
+  uses are set by `theme_day` and `theme_night` in `skin.conf`. A device that already
+  chose a theme keeps it; Settings → Theme → Auto (or the theme button) switches to it.
+
+### Fixed
+- On screens wider than 16:10 the landscape dashboard now fills the whole width (up to
+  2.5:1) instead of leaving bands at the sides: Amazon Echo Show in the Silk browser
+  (Show 5, 8, 10, 15, 21), 16:9 tablets, and browsers whose address bar shortens the
+  screen. The extra width goes between the panels; the gauges keep their shape.
+- The dashboard could sit at the left with empty space to the right in browsers on
+  older engines (Silk on some Echo Shows): the full-screen box no longer relies on CSS
+  `inset`, the screen size is measured from that box, and the page fits itself again
+  after loading and whenever the visible area changes, also when the browser doesn't
+  report it. Settings shows the layout and screen size the page sees.
+
 ## [1.1.0] – 2026-10-14
 
 ### Added
@@ -117,7 +136,8 @@ Released under the GNU General Public License, version 3 or later (see LICENSE).
 - weewx-EcowittGateway is optional; the skin works with any driver for an Ecowitt
   gateway or console.
 
-[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/releases/tag/v1.0.0
 

@@ -276,7 +276,7 @@
   }
   // Console-style ring: a gradient from a lighter to a deeper shade of the temperature colour
   function ringGrad(id, c) {
-    var t = tempScale(c), light = S.opts && S.opts.theme === 'light';
+    var t = tempScale(c), light = S.opts && themeNow() === 'light';
     var ld = light ? .44 : t.ld, ll = light ? .54 : t.ll;
     var hd = t.h > 40 ? t.h - 22 : t.h - 10;   // cold hues shift less so blue doesn't turn violet early
     var pct = function (v) { return (v * 100).toFixed(0) + '%'; };
@@ -980,7 +980,7 @@
     var row = function (k, ctl) { return '<div class="opt"><span>' + esc(_t(k)) + '</span>' + ctl + '</div>'; };
     var html = row('Language', langs) + row('Units', units) +
       row('Layout', seg('layout', [['auto', 'Auto'], ['landscape', 'Landscape'], ['portrait', 'Portrait'], ['phone', 'Phone']], S.opts.layout || 'auto')) +
-      row('Theme', seg('theme', [['navy', 'Navy'], ['black', 'Black'], ['light', 'Light']], S.opts.theme)) +
+      row('Theme', seg('theme', [['auto', 'Auto'], ['navy', 'Navy'], ['black', 'Black'], ['light', 'Light']], S.opts.theme)) +
       row('Clock', seg('clock24', [['true', '24 h'], ['false', '12 h']], S.opts.clock24)) +
       row('Show seconds', seg('seconds', [['true', 'On'], ['false', 'Off']], S.opts.seconds)) +
       row('Keep screen awake', seg('wake', [['true', 'On'], ['false', 'Off']], S.opts.wake)) +
@@ -988,6 +988,8 @@
       '<div class="meta">' + esc(S.cfg.title || a.station) + (a.hardware ? ' · ' + esc(a.hardware) : '') + '<br>' +
       esc(_t('Archive record')) + ': ' + dtf({ day: 'numeric', month: 'short', year: 'numeric' }).format(W(a.archiveTime)) + ' ' + hhmm(a.archiveTime) +
       ' (' + esc(_t('every {0} min', Math.round(a.interval / 60))) + ')<br>' +
+      esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', phone: 'Phone' }[S.layout] || 'Auto')) +
+      ' · ' + (S.fitSize ? S.fitSize[0] + ' × ' + S.fitSize[1] + ' px' : '') + '<br>' +
       esc(_t('Times shown in station time')) + (stationZone() ? ' (' + esc(stationZone()) + ')' : '') + '<br>' +
       esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) + ')<br>' +
       'EcowittConsoleEmulator ' + esc(a.version) + ' · WeeWX ' + esc(a.weewx) + '</div>';
@@ -1291,11 +1293,25 @@
     if (!req) return;                        // e.g. iPhone Safari: use "Add to Home Screen" instead
     try { var p = req.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(function () { }); } catch (e) { /* not allowed */ }
   }
+  // Theme in use: 'auto' follows the station's sun, theme_day from sunrise to sunset and
+  // theme_night from sunset to sunrise (skin.conf; Light and Black by default)
+  var THEMES = ['navy', 'black', 'light'];
+  function themeNow() {
+    var th = S.opts && S.opts.theme;
+    if (th !== 'auto') return THEMES.indexOf(th) >= 0 ? th : 'navy';
+    var d = S.cfg && S.cfg.theme_day, n = S.cfg && S.cfg.theme_night;
+    return isNight() ? (THEMES.indexOf(n) >= 0 ? n : 'black') : (THEMES.indexOf(d) >= 0 ? d : 'light');
+  }
+  // checked every minute: switch at sunrise and sunset
+  function checkAutoTheme() {
+    if (S.opts && S.opts.theme === 'auto' && themeNow() !== S.themeShown) { applyOpts(); renderAll(); }
+  }
   function applyOpts() {
-    document.body.setAttribute('data-theme', S.opts.theme);
+    var th = themeNow(); S.themeShown = th;
+    document.body.setAttribute('data-theme', th);
     if ($('sizer')) fit();
     var meta = document.querySelector('meta[name=theme-color]');
-    if (meta) meta.content = S.opts.theme === 'light' ? '#eef1fb' : S.opts.theme === 'black' ? '#000000' : '#11185a';
+    if (meta) meta.content = th === 'light' ? '#eef1fb' : th === 'black' ? '#000000' : '#11185a';
     wake(S.opts.wake);
   }
   function wake(on) {
@@ -1312,7 +1328,8 @@
       b.innerHTML = I.tool[act] || '';
       b.onclick = function () {
         if (act === 'graphs') showCharts();
-        else if (act === 'theme') { var th = ['navy', 'black', 'light']; S.opts.theme = th[(th.indexOf(S.opts.theme) + 1) % th.length]; lsSet('opts', S.opts); applyOpts(); renderAll(); }
+        else if (act === 'theme') { var th = ['auto', 'navy', 'black', 'light']; S.opts.theme = th[(th.indexOf(S.opts.theme) + 1) % th.length]; lsSet('opts', S.opts); applyOpts(); renderAll();
+          toast(_t('Theme') + ': ' + _t({ auto: 'Auto', navy: 'Navy', black: 'Black', light: 'Light' }[S.opts.theme]), 1500); }
         else if (act === 'channel') nextChannel();
         else if (act === 'sensors') showSensors();
         else if (act === 'refresh') { fetchArchive(); fetchLive(); }
@@ -1409,8 +1426,17 @@
     if (w >= h) return 'landscape';
     return w < 600 ? 'phone' : 'portrait';
   }
+  // The size of the area the dashboard can use: the full-screen box itself, which follows
+  // the browser's toolbars, else the window (some browsers report the window size late)
+  function screenSize() {
+    var vp = $('viewport'), w = vp && vp.clientWidth, h = vp && vp.clientHeight;
+    return [w || window.innerWidth || document.documentElement.clientWidth, h || window.innerHeight || document.documentElement.clientHeight];
+  }
+  // re-fit if the size changed without a resize event (e.g. Silk on Echo Show, as its address bar settles)
+  function checkFit() { var z = screenSize(); if (!S.fitSize || z[0] !== S.fitSize[0] || z[1] !== S.fitSize[1]) fit(); }
   function fit() {
-    var w = window.innerWidth, h = window.innerHeight;
+    var z = screenSize(), w = z[0], h = z[1];
+    S.fitSize = z;
     var pref = (S.opts && S.opts.layout) || 'auto';
     var layout = STAGES[pref] ? pref : autoLayout(w, h);
     if (document.body.getAttribute('data-layout') !== layout) {
@@ -1419,23 +1445,34 @@
       if (S.arch) safe(renderSky, 'sky');
     }
     var W = STAGES[layout][0], H = STAGES[layout][1];
+    // Landscape on a screen wider than 16:10 (Echo Show 5/15/21, 16:9 tablets, browsers with
+    // an address bar): the stage gets wider, up to 2.5:1, so the dashboard fills the width
+    // and the extra space goes between the panels rather than in bands at the sides.
+    var xw = layout === 'landscape' ? clamp(H * w / h, W, 2000) - W : 0;   // exact, so no sliver is left at the sides
+    W += xw;
+    if (S.xw !== xw) { S.xw = xw; $('stage').style.setProperty('--xw', xw + 'px'); }
     // phones scroll vertically; the other layouts fit the whole screen
     var s = layout === 'phone' ? w / W : Math.min(w / W, h / H);
     var sizer = $('sizer');
-    sizer.style.width = Math.floor(W * s) + 'px';
-    sizer.style.height = Math.floor(H * s) + 'px';
+    sizer.style.width = Math.round(W * s) + 'px';
+    sizer.style.height = Math.round(H * s) + 'px';
     $('stage').style.transform = 'scale(' + s + ')';
     $('viewport').style.alignItems = H * s > h + 1 ? 'flex-start' : 'center';
   }
   function init() {
     window.addEventListener('resize', fit);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+    document.addEventListener('fullscreenchange', fit); document.addEventListener('webkitfullscreenchange', fit);
+    window.addEventListener('load', fit);
+    [250, 1000, 3000].forEach(function (ms) { setTimeout(fit, ms); });
+    setInterval(checkFit, 1000);
     window.addEventListener('orientationchange', function () { setTimeout(fit, 250); });
     var rz; window.addEventListener('resize', function () {
       clearTimeout(rz); rz = setTimeout(function () { var c = chartCache[chartFile(S.chartPeriod)]; if (S.panel === 'Charts' && c) renderCharts(c.data); }, 300);
     });
     setArchive(window.ECCE_INITIAL);
     if (!S.cfg) { document.body.innerHTML = '<p style="padding:2em">' + esc(_t('No data from WeeWX yet.')) + '</p>'; return; }
-    S.opts = lsGet('opts', null) || { theme: S.cfg.theme || 'navy', clock24: S.cfg.clock_24h !== false, seconds: true, wake: false };
+    S.opts = lsGet('opts', null) || { theme: S.cfg.theme || 'auto', clock24: S.cfg.clock_24h !== false, seconds: true, wake: false };
     S.chIdx = lsGet('chIdx', 0) || 0;
     S.chartYear = lsGet('chartYear', '') || '';
     S.unitKey = loadUnitKey();
@@ -1462,7 +1499,7 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { renderAll(); });
     setInterval(tickClock, 1000);
     setInterval(fetchArchive, Math.max(15, S.cfg.archive_poll || 60) * 1000);
-    setInterval(function () { safe(renderSky, 'sky'); safe(renderTopRight, 'soil/lightning'); safe(renderBaro, 'baro'); }, 60000);
+    setInterval(function () { safe(renderSky, 'sky'); safe(renderTopRight, 'soil/lightning'); safe(renderBaro, 'baro'); safe(checkAutoTheme, 'theme'); }, 60000);
     fetchLive().then(scheduleLive, scheduleLive);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible') { if (S.opts.wake) wake(true); fetchArchive(); fetchLive(); }

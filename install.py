@@ -47,7 +47,7 @@ import sys
 
 from weecfg.extension import ExtensionInstaller
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 REPORT = 'EcowittConsoleEmulatorReport'
 RAIN_CHOICES = ('tipping', 'piezo', 'both')
 LIVE_CHOICES = ('driver', 'skin')

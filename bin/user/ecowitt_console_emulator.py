@@ -65,7 +65,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -352,7 +352,10 @@ def build_dashboard_config(skin_dict, config_dict=None):
         'live_poll': to_int(extras.get('live_poll', 5)),
         'archive_poll': to_int(extras.get('archive_poll', 60)),
         'live_stale': to_int(extras.get('live_stale', 120)),
-        'theme': str(extras.get('theme', 'navy')),
+        'theme': str(extras.get('theme', 'auto')),
+        # the themes 'auto' uses between sunrise and sunset, and at night
+        'theme_day': str(extras.get('theme_day', 'light')),
+        'theme_night': str(extras.get('theme_night', 'black')),
         'title': str(extras.get('title', '')),
         'links': {k: str(v) for k, v in extras.get('Links', {}).items()},
         'clock_24h': to_bool(extras.get('clock_24h', True)),
