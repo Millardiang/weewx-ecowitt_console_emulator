@@ -208,6 +208,32 @@ body[data-layout="portrait"] #baro { left: 163px; top: 1330px; }
 body[data-layout="portrait"] #sep-v { display: none; }
 body[data-layout="portrait"] #toolbar { width: 800px; }
 
+/* Square: near-square screens such as Apple HomeView (1088 x 1088). 1040 x 1070, made
+   wider (up to 5:4) on screens a little wider than square, like landscape. Row by row:
+   header; outdoor ring, wind dial and a column with lightning, soil and air quality;
+   readings; channel rings beside rain and barometer; sun/moon drawing; toolbar. Extra
+   side padding keeps the header clear of rounded screen corners. */
+body[data-layout="square"] #stage { width: calc(1040px + var(--xw, 0px)); height: 1070px; }
+body[data-layout="square"] #hdr { width: calc(1040px + var(--xw, 0px)); padding: 0 34px; }
+body[data-layout="square"] #hdr-l { width: auto; }
+body[data-layout="square"] #hdr-title { font-size: 24px; padding: 0 12px; }
+body[data-layout="square"] #hdr-clock #time { margin-left: 14px; min-width: 112px; }
+body[data-layout="square"] #g-out { left: calc(14px + var(--xw, 0px) * .2); top: 66px; }
+body[data-layout="square"] #g-wind { left: calc(360px + var(--xw, 0px) * .55); top: 66px; }
+body[data-layout="square"] #rt-top { left: calc(730px + var(--xw, 0px)); top: 74px; width: 296px; height: 112px; }
+body[data-layout="square"] #light { left: 0; right: auto; top: 0; }
+body[data-layout="square"] #soil { top: 64px; }
+body[data-layout="square"] #aq { left: calc(734px + var(--xw, 0px)); top: 210px; width: 292px; height: auto; flex-direction: column; align-items: flex-start; gap: 14px; }
+body[data-layout="square"] #stats { left: 12px; top: 420px; width: calc(1016px + var(--xw, 0px)); }
+body[data-layout="square"] #g-ch { left: calc(10px + var(--xw, 0px) * .25); top: 496px; }
+body[data-layout="square"] #rain { left: calc(552px + var(--xw, 0px)); top: 496px; }
+body[data-layout="square"] #sep-h1 { display: none; }
+body[data-layout="square"] #sep-h2 { left: calc(552px + var(--xw, 0px)); top: 684px; width: 474px; }
+body[data-layout="square"] #baro { left: calc(552px + var(--xw, 0px)); top: 690px; }
+body[data-layout="square"] #sep-v { display: none; }
+body[data-layout="square"] #sky { left: calc(132px + var(--xw, 0px) / 2); top: 818px; }
+body[data-layout="square"] #toolbar { width: calc(1040px + var(--xw, 0px)); }
+
 /* =====================================================================
    Phone: 540 wide, one column, fitted to the screen width and scrolling
    ===================================================================== */

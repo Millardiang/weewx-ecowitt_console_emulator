@@ -9,6 +9,16 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [1.1.1] – 2026-10-15
 
+### Added
+- Square layout for near-square screens such as Apple HomeView (1088 × 1088), chosen
+  automatically when the screen's width:height is between 0.8 and 1.25, and under
+  Settings → Layout. It fills the whole screen, widening up to 5:4 like landscape.
+  "Square" is in all 30 languages.
+- Language, units, theme and layout can be set in the page address
+  (`?lang=fr&units=metric&theme=auto&layout=landscape`), for screens where Settings
+  can't be used or isn't kept, such as a page cast to a Google Nest Hub. The README
+  explains casting the dashboard to a Nest Hub or Nest Hub Max with CATT.
+
 ### Changed
 - New Auto theme, now the default: Light from sunrise to sunset and Black from sunset
   to sunrise, switching by itself at the station's sunrise and sunset. The themes it

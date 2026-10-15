@@ -1,8 +1,8 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
 # Version 1.1.1
 
-A full-screen, landscape dashboard for a wall or desk tablet, laid out like the
-Ecowitt WH2560 / HP2560 console, in a black, white or navy-blue palette: outdoor temperature
+A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
+HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
 ring, wind dial, selectable temperature/humidity channel, soil moisture / leaf
 wetness and lightning line, leak indicators, PM2.5 and CO₂, sun arc and moon
 phase, rain (traditional and/or piezo), and barometer with 3-hour trend and a
@@ -21,6 +21,23 @@ rain gauge in `p_rain`, sensor batteries and signal). Without it the skin uses
 its own live file and works the extras out itself (see
 [Fields](#fields-the-dashboard-uses)). Only the sensors you actually have are shown.
 
+### Works on
+
+Any device with a web browser that can reach your WeeWX web server. It fills the
+whole screen of:
+
+| Device | Browser | Layout |
+|---|---|---|
+| Tablets (Android, iPad) | Chrome, Safari, Fully Kiosk Browser … | Landscape or Portrait, as the tablet is held |
+| Phones | any | Phone (one scrolling column), or Landscape when turned sideways |
+| **Amazon Echo Show** 5, 8, 10, 15 and 21 | Silk ("Alexa, open Silk") | Landscape, made wider to fill the whole width of these wide screens below Silk's address bar |
+| **Apple HomeView** (7-inch square, 1088 × 1088) | Safari | Square, made for its square screen, with the header clear of the rounded corners |
+| **Google Nest Hub** (7-inch, 1024 × 600) and **Nest Hub Max** (10-inch, 1280 × 800) | none of its own: the page is cast to it (see [tips](#tablet-and-smart-display-tips)) | Landscape, filling the whole screen |
+| Computers, TVs and other screens | any | whichever fits the window's shape |
+
+The layout is chosen from the shape of the screen, so no setting is needed; see
+[Layouts](#layouts) and [Tablet and smart-display tips](#tablet-and-smart-display-tips).
+
 ### Layouts
 
 The page picks a layout from the shape of the screen and switches when the
@@ -30,9 +47,10 @@ device is rotated:
 |---|---|---|---|
 | Landscape | wider than tall | 1280 × 800, fitted to the screen; on screens wider than 16:10 (Echo Show, 16:9 tablets) made wider, up to 2.5:1, so it always fills the width | the console layout |
 | Portrait | tablet held upright (600 px wide or more) | 800 × 1518, fitted to the screen, no scrolling | outdoor and wind gauges side by side, readings, sun/moon, channel rings, rain, barometer |
+| Square | near-square screens (width:height 0.8–1.25), e.g. Apple HomeView | 1040 × 1070, fitted to the screen, made wider up to 5:4 | header; outdoor and wind gauges with lightning, soil and air quality beside them; readings; channel rings beside rain and barometer; sun/moon; toolbar |
 | Phone | narrow screens (under 600 px) | 540 wide, fitted to the width, scrolls | one column; readings in 3 × 2; header on two rows; a narrower sun/moon drawing with larger text |
 
-**Settings → Layout** can force one of them (Auto, Landscape, Portrait, Phone);
+**Settings → Layout** can force one of them (Auto, Landscape, Portrait, Square, Phone);
 the choice is kept in the browser. "Add to Home screen" apps can rotate freely.
 
 ## What's in the package
@@ -66,6 +84,10 @@ archive only, red = stale.
   the installer reads its settings and can use its live file.
 * For live updates the tablet must load the page from a web server that serves
   WeeWX's `public_html` directly (e.g. nginx/Apache on the WeeWX machine).
+* A browser on the display: any current browser on a tablet, phone or computer;
+  Silk on an Amazon Echo Show; Safari on an Apple HomeView. A Google Nest Hub has
+  no browser of its own: the page is cast to it from another machine on the same
+  network (e.g. the WeeWX machine) with the free CATT tool.
 
 ### Fields the dashboard uses
 
@@ -200,14 +222,39 @@ browser leaves it (Settings → "Full screen on touch" turns this off). Escape o
 closes a panel. On an iPhone, which has no full-screen mode for web pages, use
 Share → "Add to Home Screen".
 
-### Tablet tips
+### Tablet and smart-display tips
 
 * **Android:** Chrome → ⋮ → *Add to Home screen* opens it full screen. For a
   permanent wall display, a kiosk browser (e.g. Fully Kiosk Browser) works well.
 * **iPad:** Safari → Share → *Add to Home Screen*.
-* **Amazon Echo Show:** open the page in the Silk browser ("Alexa, open Silk"). The
-  dashboard fills the width of every Echo Show (5, 8, 10, 15, 21), below Silk's
-  address bar; the extra width goes between the panels.
+* **Amazon Echo Show:** say "Alexa, open Silk", then enter the dashboard's address
+  (e.g. `http://192.168.1.10/weewx/console/`) and bookmark it. The dashboard fills
+  the width of every Echo Show (5, 8, 10, 15, 21), below Silk's address bar; the
+  extra width goes between the panels, and the gauges keep their shape. The first
+  tap switches to full screen where Silk allows it.
+* **Apple HomeView:** open the dashboard's address in Safari. Its square screen gets
+  the Square layout, which fills the whole screen; the header keeps clear of the
+  rounded corners.
+* **Google Nest Hub / Nest Hub Max:** these have no browser you can open, so the
+  dashboard is *cast* to them, here with [CATT](https://github.com/skorokithakis/catt)
+  ("Cast All The Things") on the WeeWX machine or any computer on the same network:
+  ```bash
+  pip install catt
+  catt -d "Kitchen display" cast_site "http://192.168.1.10/weewx/console/?lang=en&units=uk&theme=auto"
+  ```
+  (`-d` takes the Hub's name as shown in the Google Home app, or its IP address.)
+  A cast page stops after about 10 minutes, so send it again regularly, e.g. every
+  9 minutes from cron:
+  ```
+  */9 * * * * catt -d "Kitchen display" cast_site "http://192.168.1.10/weewx/console/?theme=auto"
+  ```
+  Home Assistant users can use the DashCast add-on or
+  [ha-catt-fix](https://github.com/swiergot/ha-catt-fix) to keep it showing. The
+  Hub may not keep settings chosen on the page between casts, so put them in the
+  address (see [Options in the address](#options-in-the-address)).
+* If a screen isn't filled as expected, Settings (⚙) shows the layout and the
+  screen size the page sees (e.g. "Layout: Landscape · 960 × 430 px"), and
+  Settings → Layout can choose a layout by hand.
 * Settings (⚙) → *Keep screen awake* stops the screen dimming (Wake Lock API;
   needs HTTPS or `localhost` on most browsers).
 
@@ -259,6 +306,26 @@ the page.
   sensor ids, e.g. `Greenhouse = extraTemp1, extraHumid1, wn31_ch1`
 * `[[SoilChannels]]`, `[[LeafChannels]]`, `[[LeakChannels]]`, `[[PMChannels]]` – custom labels/fields
 * `[[Sensors]]` – battery/signal list; `kind` is `binary` (0 = OK), `level` (0–5, 6 = DC) or `volt:<low volts>`
+
+### Options in the address
+
+Language, units, theme and layout can also be set in the page's address, for
+screens where Settings can't be used or isn't kept (a page cast to a Google Nest
+Hub, a kiosk):
+
+```
+http://<your-weewx-host>/weewx/console/?lang=fr&units=metric&theme=auto&layout=landscape
+```
+
+| Option | Values |
+|---|---|
+| `lang` | a language code (see [Languages](#languages-same-as-weewx-divumwx)) |
+| `units` | `uk`, `us`, `metric`, `scandi`, `canada`, `icao` |
+| `theme` | `auto`, `navy`, `black`, `light` |
+| `layout` | `auto`, `landscape`, `portrait`, `square`, `phone` |
+
+They are applied as if chosen in Settings each time the page is opened with them;
+values that aren't recognised are ignored.
 
 ### Languages (same as weewx-divumwx)
 
