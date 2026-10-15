@@ -7,6 +7,31 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-10-14
+
+### Added
+- Indoor temperature chart on every Charts tab (`inTemp`, mappable in `[[FieldMap]]`):
+  the average on the Day, Week and Month tabs, the daily high and low on the Year tab.
+- The installer asks whether to show VPD (vapour pressure deficit): yes shows the VPD
+  reading and its chart as before, no leaves both out. `--vpd=y|n` answers it for
+  unattended installs; the answer is stored as `show_vpd` and offered again on
+  reinstall. Existing installations keep VPD.
+- "Indoor temperature" in all 30 languages.
+
+### Changed
+- The readings row spreads its readings evenly whatever their number (six when VPD
+  is not shown).
+- Installing removes the calendar-year chart files (`chart_2025.json` ...), so WeeWX
+  writes them again with the new charts; before, a year's file was never rewritten.
+- The VPD chart is always in the chart files and left out by the page when VPD is
+  not shown, so changing `show_vpd` takes effect at once on every tab and year.
+
+### Fixed
+- With one rain gauge, long words in some languages ran into the rain totals or out
+  of the panel: the rate line and the total labels are now fitted to their space,
+  and the Czech, Finnish, Hungarian, Norwegian and Tamil labels there are shorter.
+- Labels in the readings row could be cut short instead of going onto two lines.
+
 ## [1.0.0] – 2026-10-07
 
 First public release. A WeeWX 5 skin and extension that turns a tablet, phone or
@@ -92,7 +117,8 @@ Released under the GNU General Public License, version 3 or later (see LICENSE).
 - weewx-EcowittGateway is optional; the skin works with any driver for an Ecowitt
   gateway or console.
 
-[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/releases/tag/v1.0.0
 
 ---

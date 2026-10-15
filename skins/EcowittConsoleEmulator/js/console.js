@@ -131,13 +131,13 @@
   function textWidth(el) { var r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width / stageScale(); }
   // Labels in fixed-width slots (longer in some languages): first made a little smaller,
   // then, if still too wide, put on two lines
-  function fitText(el) {
+  function fitText(el, oneLine) {
     if (!el) return;
     el.style.fontSize = ''; el.style.whiteSpace = ''; el.style.lineHeight = '';
     var base = parseFloat(getComputedStyle(el).fontSize), fs = base;
     var wide = function () { return textWidth(el) > el.getBoundingClientRect().width / stageScale() - 0.5; };
-    while (wide() && fs > base * 0.78) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
-    if (!wide()) return;
+    while (wide() && fs > base * (oneLine ? 0.62 : 0.78)) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
+    if (!wide() || oneLine) return;
     el.style.whiteSpace = 'normal'; el.style.lineHeight = '1.08';
     fs = base * 0.9; el.style.fontSize = fs + 'px';
     while ((wide() || el.offsetHeight > fs * 1.08 * 2 + 1) && fs > 10) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
@@ -668,12 +668,14 @@
     var items = [
       [_t('Feels Like'), fmt(cv.temp(feels), 1) + '<span class="unit">' + lbl.temp() + '</span>'],
       [_t('Dewpoint'), fmt(cv.temp(pick(fm.dewpoint, a.out.dew)), 1) + '<span class="unit">' + lbl.temp() + '</span>'], [_t('Humidity'), fmt(h, 0) + '%'],
-      [_t('VPD'), fmt(vpdKpa(t, h), 2) + '<span class="unit">kPa</span>'],
+      S.cfg.show_vpd === false ? null : [_t('VPD'), fmt(vpdKpa(t, h), 2) + '<span class="unit">kPa</span>'],
       [_t('10Min.Avg'), (isNum(avg.d) ? compass(avg.d) + ' ' : '') + fmt(cv.wind(avg.v), dec.wind())],
       [_t('Max Daily Gust'), fmt(cv.wind(maxOf(a.wind.maxGust, lv(fm.maxdailygust), lv(fm.windGust))), dec.wind())],
       // Beaufort force of the current wind (always Bft, whatever the unit preset)
       [_t('Beaufort'), isNum(bft(spd)) ? bft(spd) + '<span class="unit">Bft</span>' : '--', isNum(bft(spd)) ? _t(BFT_NAMES[bft(spd)]) : '']
     ];
+    items = items.filter(Boolean);
+    $('stats').style.setProperty('--ncol', items.length);
     $('stats').innerHTML = items.map(function (it) {
       return '<div' + (it[2] ? ' title="' + esc(it[2]) + '"' : '') + '><div class="k">' + esc(it[0]) + '</div><div class="v">' + it[1] + '</div></div>';
     }).join('');
@@ -687,7 +689,7 @@
       var n = rects[i + 1];       // the next label in the same row
       return n && Math.abs(n.top - r.top) < 4 && (n.left - r.right) / sc < 6;
     });
-    if (tight) { st.classList.add('tight'); ks.forEach(fitText); }
+    if (tight) { st.classList.add('tight'); ks.forEach(function (k) { fitText(k); }); }
   }
   function pmColor(v) {
     if (!isNum(v)) return 'var(--fg-faint)';
@@ -868,6 +870,9 @@
       '<div class="list">' + [[_t('Event'), r.event], [_t('Hourly'), r.hour], [_t('Weekly'), r.week], [_t('Monthly'), r.month], [_t('Yearly'), r.year]].map(function (x) {
         return '<div class="row"><span>' + esc(x[0]) + '</span><span>' + fmt(cv.rain(x[1]), nd) + ' ' + esc(u) + '</span></div>';
       }).join('') + '</div>';
+    // longer words in some languages: fit the rate line and the total labels to their space
+    fitText($('rain').querySelector('.rate'), true);
+    Array.prototype.forEach.call($('rain').querySelectorAll('.list .row span:first-child'), function (el) { fitText(el, true); });
     var t = $('rain-src');
     if (t) t.onclick = function () { S.rainSrc = key === 'piezo' ? 'trad' : 'piezo'; lsSet('rainSrc', S.rainSrc); renderRain(); };
   }
@@ -1226,7 +1231,8 @@
   function renderCharts(data) {
     if (S.panel !== 'Charts') return;
     chartSize();
-    var built = data.charts.map(function (def) { return drawChart(def, data); }).filter(Boolean);
+    var built = data.charts.filter(function (def) { return !(def.id === 'vpd' && S.cfg.show_vpd === false); })
+      .map(function (def) { return drawChart(def, data); }).filter(Boolean);
     $('ov-body').innerHTML = built.length ? '<div class="chart-hint">' + esc(matchMedia('(hover: hover)').matches ? _t('Hover over a chart to see its values') : _t('Tap or drag on a chart to see its values')) +
       '</div><div class="charts">' + built.map(function (c) { return c.html; }).join('') + '</div>'
       : '<div class="chart-empty">' + esc(_t('No data for this period.')) + '</div>';

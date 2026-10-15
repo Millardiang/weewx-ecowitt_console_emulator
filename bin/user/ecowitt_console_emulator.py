@@ -65,7 +65,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -109,6 +109,7 @@ for _grp, _fields in _DRIVER_GROUPS.items():
 # Override any of these in skin.conf [Extras][[FieldMap]].
 DEFAULT_FIELD_MAP = {
     'outTemp': 'outTemp', 'outHumidity': 'outHumidity', 'dewpoint': 'dewpoint', 'feelslike': 'feelslike',
+    'inTemp': 'inTemp',
     'windSpeed': 'windSpeed', 'windDir': 'windDir', 'windGust': 'windGust',
     'windDir10': 'windDir10', 'maxdailygust': 'maxdailygust',
     'barometer': 'barometer', 'pressure': 'pressure',
@@ -361,6 +362,8 @@ def build_dashboard_config(skin_dict, config_dict=None):
         'unit_system': str(extras.get('unit_system', 'uk')).lower(),
         # tipping, piezo or both; defaults to the driver's rain_source
         'rain_sensors': _rain_sensors(extras, config_dict),
+        # VPD reading and chart (the installer asks; true unless turned off)
+        'show_vpd': to_bool(extras.get('show_vpd', True)),
         'baro_mode': str(extras.get('baro_mode', 'REL')).upper(),
         # Windy radar button: {lat}, {lon} and {zoom} are filled in by the page
         'windy_radar': to_bool(extras.get('windy_radar', True)),
@@ -632,8 +635,14 @@ class EcowittConsoleEmulatorData(SearchList):
             ('temp', 'Temperature', 'line', 'temp',
              [('tmax', 'High', fm['outTemp'], 'max'), ('tmin', 'Low', fm['outTemp'], 'min')] if daily else
              [('temp', 'Temperature', fm['outTemp'], 'avg'), ('dew', 'Dew point', fm['dewpoint'], 'avg')]),
+            ('intemp', 'Indoor temperature', 'line', 'temp',
+             [('itmax', 'High', fm['inTemp'], 'max'), ('itmin', 'Low', fm['inTemp'], 'min')] if daily else
+             [('itemp', 'Indoor temperature', fm['inTemp'], 'avg')]),
             ('hum', 'Humidity', 'line', 'hum', [('hum', 'Humidity', fm['outHumidity'], 'avg')]),
+            # always written; the page leaves it out when show_vpd is off, so the setting
+            # takes effect at once, also for calendar-year files that are never rewritten
             ('vpd', 'Vapour pressure deficit', 'line', 'vpd', [('vpd', 'VPD', VPD_FIELD, 'avg')]),
+        ] + [
             ('wind', 'Wind', 'line', 'speed',
              [('wspd', 'Wind', fm['windSpeed'], 'avg'), ('wgst', 'Gust', fm['windGust'], 'max')]),
         ] + self._rain_chart_defs(keys) + [

@@ -26,6 +26,8 @@
 #   piezo    - piezoelectric haptic gauge (WS90, WS85, WH40H...)
 #   both     - both kinds; the dashboard's rain section gets a column for each
 #
+# whether to show VPD (vapour pressure deficit): the reading and its chart (yes/no),
+#
 # and, only when weewx-EcowittGateway is installed, where live data comes from
 # (otherwise it is always the skin's own live.json):
 #   driver - the driver's ecwLoop.json (its [[loop_json]] option; turned on if needed)
@@ -37,7 +39,7 @@
 # if it doesn't exist, with the same schema as the station's main database.
 #
 # For unattended installs give the answers on the command line:
-#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver
+#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver --vpd=y
 #
 import os
 import posixpath
@@ -45,10 +47,11 @@ import sys
 
 from weecfg.extension import ExtensionInstaller
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 REPORT = 'EcowittConsoleEmulatorReport'
 RAIN_CHOICES = ('tipping', 'piezo', 'both')
 LIVE_CHOICES = ('driver', 'skin')
+VPD_CHOICES = ('yes', 'no')
 # Translations in skins/EcowittConsoleEmulator/lang (English is built into the page)
 LANGUAGES = ('ar', 'br', 'ca', 'cn', 'cy', 'cz', 'da', 'de', 'en_US', 'es', 'eu', 'fi', 'fr', 'gr', 'hi',
              'hu', 'is', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'ta', 'th', 'tr', 'uk', 'ur')
@@ -129,11 +132,13 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         )
         self.rain_arg = None
         self.live_arg = None
+        self.vpd_arg = None
 
     def process_args(self, args):
-        """Accept --rain=tipping|piezo|both and --live=driver|skin for unattended installs."""
+        """Accept --rain=tipping|piezo|both, --live=driver|skin and --vpd=y|n for unattended installs."""
         for i, a in enumerate(args or []):
-            for opt, choices, attr in (('--rain', RAIN_CHOICES, 'rain_arg'), ('--live', LIVE_CHOICES, 'live_arg')):
+            for opt, choices, attr in (('--rain', RAIN_CHOICES, 'rain_arg'), ('--live', LIVE_CHOICES, 'live_arg'),
+                                       ('--vpd', VPD_CHOICES, 'vpd_arg')):
                 val = None
                 if a.startswith(opt + '='):
                     val = a.split('=', 1)[1]
@@ -141,6 +146,7 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                     val = args[i + 1]
                 if val is not None:
                     val = val.strip().lower()
+                    val = next((c for c in choices if val and c.startswith(val)), val)   # y -> yes
                     if val not in choices:
                         raise ValueError("%s must be one of: %s" % (opt, ', '.join(choices)))
                     setattr(self, attr, val)
@@ -179,6 +185,18 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                 "rain_source = both to archive the second gauge too." % drv_rain)
         out("EcowittConsoleEmulator: rain sensor(s) set to '%s'" % rain)
 
+        # --- VPD (vapour pressure deficit) reading and chart -------------------
+        cur_vpd = str(extras.get('show_vpd', 'true')).lower()
+        default_vpd = 'no' if cur_vpd in ('false', 'no', '0', 'off') else 'yes'
+        vpd = self.vpd_arg
+        if vpd is None:
+            if interactive:
+                print("\nShow VPD (vapour pressure deficit, in kPa) on the dashboard and in the charts?")
+                vpd = _ask("Show VPD (yes/no)", default_vpd, VPD_CHOICES)
+            else:
+                vpd = default_vpd
+        out("EcowittConsoleEmulator: VPD %s" % ('shown' if vpd == 'yes' else 'not shown'))
+
         # --- live data: the driver's ecwLoop.json or the skin's live.json ----
         loop = driver.get('loop_json', {}) if driver is not None else {}
         live_url, loop_settings = None, None
@@ -216,8 +234,17 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         # --- the skin's own database: check what already exists ------------
         changed |= self._configure_database(engine, cfg, out)
 
+        # --- per-year chart files (chart_2025.json ...) are written once and then kept;
+        # remove them so WeeWX writes them again, with this version's charts
+        if not engine.dry_run:
+            n = _remove_year_charts(cfg)
+            if n:
+                out("EcowittConsoleEmulator: removed %d calendar-year chart file(s); WeeWX writes them "
+                    "again at its next report" % n)
+
         # --- write the answers ----------------------------------------------
-        answers = {'rain_sensors': rain, 'live_url': live_url if live == 'driver' else 'live.json'}
+        answers = {'rain_sensors': rain, 'live_url': live_url if live == 'driver' else 'live.json',
+                   'show_vpd': 'true' if vpd == 'yes' else 'false'}
         service_enable = 'false' if live == 'driver' else 'true'
         self['config']['StdReport'][REPORT]['Extras'].update(answers)
         self['config']['EcowittConsoleEmulator']['enable'] = service_enable
@@ -286,6 +313,25 @@ def _database_state(cfg, db_name, db_entry):
             return False
     except Exception as e:
         return str(e) or e.__class__.__name__
+
+
+def _remove_year_charts(cfg):
+    """Delete chart_<year>.json in the skin's web folder; returns how many."""
+    import glob
+    import re
+    report = cfg.get('StdReport', {}).get(REPORT, {})
+    folder = os.path.join(_web_root(cfg), 'console')
+    if report.get('HTML_ROOT'):
+        folder = os.path.normpath(os.path.join(cfg.get('WEEWX_ROOT', ''), report['HTML_ROOT']))
+    n = 0
+    for f in glob.glob(os.path.join(folder, 'chart_*.json')):
+        if re.match(r'chart_\d{4}\.json$', os.path.basename(f)):
+            try:
+                os.remove(f)
+                n += 1
+            except OSError:
+                pass
+    return n
 
 
 def _web_root(cfg):

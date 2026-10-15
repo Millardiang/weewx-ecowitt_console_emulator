@@ -120,6 +120,16 @@ The first letter is enough. With **both**, the rain section becomes a table with
 a **Tipping** and a **Piezo** column (Daily, Rate, Event, Hourly, Weekly, Monthly,
 Yearly), and the rain chart shows a column for each.
 
+Then it asks whether to show VPD (vapour pressure deficit):
+
+```
+Show VPD (vapour pressure deficit, in kPa) on the dashboard and in the charts?
+Show VPD (yes/no) [yes]:
+```
+
+**yes** shows the VPD reading (after Humidity) and the VPD chart; **no** leaves
+both out, and the readings row spreads the others across the space.
+
 Live data then comes from the skin's own `live.json`; no question is asked.
 
 **If weewx-EcowittGateway is installed** (an `[EcowittGateway]` section in
@@ -144,12 +154,12 @@ For unattended installs, answer on the command line (`--live` only matters
 when weewx-EcowittGateway is installed):
 
 ```bash
-weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both
-weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver
+weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
+weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
 ```
 
 The answers are stored in `weewx.conf` under
-`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]` (`rain_sensors`, `live_url`).
+`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]` (`rain_sensors`, `show_vpd`, `live_url`).
 Reinstalling offers your current answers as the defaults.
 
 This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
@@ -163,6 +173,7 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
         enable = true
         [[[Extras]]]
             rain_sensors = both
+            show_vpd = true
             live_url = live.json
 
 [EcowittConsoleEmulator]                # the skin's own live service
@@ -200,7 +211,7 @@ Share → "Add to Home Screen".
 
 | Toolbar button | Action |
 |---|---|
-| Charts | Full-screen charts with Day, Week, Month and Year tabs. The Year tab has a list: the last 12 months, or any calendar year in the skin's database (1 January to 31 December). Charts: temperature, humidity, VPD (kPa), wind, wind direction (day), rain, barometer, solar radiation, UV. Rain is one chart with a separate column for the tipping gauge (blue) and the piezo sensor (violet) in each hour, day or month and the difference in the tooltip. The legend gives each gauge's total for today, this week, this month or this year (by tab): the same figures as the rain table. The bars cover the chart's whole span (27 hours, 7 days, 31 days, 12 months). Every chart has a tooltip: hover with a mouse, or tap/drag on a touch screen. Drawn in the current theme and display units |
+| Charts | Full-screen charts with Day, Week, Month and Year tabs. The Year tab has a list: the last 12 months, or any calendar year in the skin's database (1 January to 31 December). Charts: temperature, indoor temperature, humidity, VPD (kPa, unless turned off), wind, wind direction (day), rain, barometer, solar radiation, UV. Rain is one chart with a separate column for the tipping gauge (blue) and the piezo sensor (violet) in each hour, day or month and the difference in the tooltip. The legend gives each gauge's total for today, this week, this month or this year (by tab): the same figures as the rain table. The bars cover the chart's whole span (27 hours, 7 days, 31 days, 12 months). Every chart has a tooltip: hover with a mouse, or tap/drag on a touch screen. Drawn in the current theme and display units |
 | Theme | Navy (console) → Black (OLED / night) → Light |
 | CH | Switches the second pair of rings between the temperature/humidity channels that are reporting: Indoor, then each WN31 (CH1–CH8). Greyed out when only one channel reports |
 | Battery | Battery and signal of every sensor that reports them |
@@ -236,6 +247,7 @@ the page.
   `windy_embed_url` / `windy_url` can be changed (`{lat}`, `{lon}`, `{zoom}`,
   `{wind}`, `{temp}` are filled in). The tablet needs internet access for this.
 * `rain_sensors` – `tipping`, `piezo`, `both` or `auto` (set by the installer); `baro_mode` – `REL` or `ABS`
+* `show_vpd` – `true` or `false`: the VPD reading and chart (set by the installer)
 * `[[Links]]` – chips at the top left, e.g. `Windy = https://www.windy.com/station/…`
 * `[[FieldMap]]` – only needed if your driver names a field differently (or you've remapped it)
 * `[[Channels]]` – which T&H channels the CH button cycles through, their names and

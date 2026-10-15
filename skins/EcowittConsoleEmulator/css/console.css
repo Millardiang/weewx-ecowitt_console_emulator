@@ -121,9 +121,9 @@ section { position: absolute; }
 #g-ch { left: 790px; top: 136px; width: 474px; height: 272px; }
 
 /* stats + AQ */
-#stats { left: 8px; top: 424px; width: 764px; height: 62px; display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+#stats { left: 8px; top: 424px; width: 764px; height: 62px; display: grid; grid-template-columns: repeat(var(--ncol, 7), 1fr); text-align: center; }
 /* labels too long to sit side by side (some languages): equal columns, labels fitted to them */
-#stats.tight { grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 4px; }
+#stats.tight { grid-template-columns: repeat(var(--ncol, 7), minmax(0, 1fr)); column-gap: 4px; }
 #stats > div { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
 #stats .k { font-size: 17px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; }
 #stats.tight .k { overflow: hidden; text-overflow: ellipsis; }
@@ -139,14 +139,15 @@ section { position: absolute; }
 #rain { left: 790px; top: 418px; width: 474px; height: 184px; }
 #rain .icon { position: absolute; left: 0; top: 30px; width: 96px; text-align: center; }
 #rain .src { display: inline-block; margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--fg-dim); border: 1.5px solid var(--line); border-radius: 10px; padding: 1px 9px; }
-#rain .rate { position: absolute; left: 112px; top: 14px; font-size: 20px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; }
+#rain .rate { position: absolute; left: 112px; top: 14px; width: 180px; font-size: 20px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #rain .rate b { color: var(--fg); margin-left: 8px; }
 #rain .day { position: absolute; left: 112px; top: 50px; font-size: 72px; font-weight: 700; line-height: 1; white-space: nowrap; }
 #rain .day .unit { font-size: 24px; }
 #rain .lbl { position: absolute; left: 112px; top: 136px; font-size: 21px; font-weight: 700; color: var(--fg-dim); }
 #rain .list { position: absolute; left: 300px; top: 8px; width: 174px; font-size: 19px; font-weight: 700; }
 #rain .list .row { display: flex; justify-content: space-between; line-height: 1.7; white-space: nowrap; }
-#rain .list .row span:first-child { color: var(--fg-dim); }
+#rain .list .row span:first-child { color: var(--fg-dim); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-right: 6px; }
+#rain .list .row span:last-child { flex: none; }
 
 /* barometer */
 #baro { left: 790px; top: 612px; width: 474px; height: 134px; }
