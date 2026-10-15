@@ -78,6 +78,7 @@
   function loadLangKey() {
     var k = null;
     try { k = localStorage.getItem(LANG_KEY); } catch (e) { /* private mode */ }
+    if (S.urlLang) k = S.urlLang;
     if (!LANGS[k]) k = (S.cfg && LANGS[S.cfg.language]) ? S.cfg.language : 'en';
     return k;
   }
@@ -184,6 +185,7 @@
   function loadUnitKey() {
     var k = null;
     try { k = localStorage.getItem(UNIT_KEY); if (k === 'aviation') k = 'icao'; } catch (e) { /* private mode */ }
+    if (S.urlUnits) k = S.urlUnits;
     // Beaufort is shown as its own reading here; a DivumWX 'beaufort' choice uses metric units
     // (the stored choice is left alone so DivumWX keeps it)
     if (k === 'beaufort') k = 'metric';
@@ -805,10 +807,12 @@
       g += '<text x="' + (cx - mrx + 8) + '" y="' + (cy - 4) + '" font-size="' + fs.moon + '" font-weight="700" fill="var(--moon-track)">↑ ' + hhmm(mt.rise) + '</text>' +
         '<text x="' + (cx + mrx - 8) + '" y="' + (cy - 4) + '" text-anchor="end" font-size="' + fs.moon + '" font-weight="700" fill="var(--moon-track)">↓ ' + hhmm(mt.set) + '</text>';
     }
-    // moon phase
-    var px = phone ? 330 : 600;
-    g += '<g id="moon-g" transform="translate(' + px + ',-14)">' + I.moon(al.moonFullness, waxing, 18) + '</g>' +
-      '<text id="moon-ph" x="' + (px + 28) + '" y="-7" font-size="' + fs.phase + '" font-weight="700" fill="var(--fg-dim)">' + esc(moonPhaseName(al)) + '</text>';
+    // moon phase: above the drawing, or (square layout, where the barometer is next to it)
+    // in the drawing's empty top-left corner
+    var square = S.layout === 'square';
+    var px = phone ? 330 : square ? 6 : 600, py = square ? 18 : -14;
+    g += '<g id="moon-g" transform="translate(' + px + ',' + py + ')">' + I.moon(al.moonFullness, waxing, 18) + '</g>' +
+      '<text id="moon-ph" x="' + (px + 28) + '" y="' + (py + 7) + '" font-size="' + fs.phase + '" font-weight="700" fill="var(--fg-dim)">' + esc(moonPhaseName(al)) + '</text>';
     $('sky').innerHTML = svg(SW, phone ? 226 : 200, g);
     // radiation and UV stay between the moonrise and moonset times
     Array.prototype.forEach.call($('sky').querySelectorAll('.sky-mid'), function (el) {
@@ -819,10 +823,11 @@
     });
     // a long phase name (some languages) moves left, moon included, before it is made smaller
     var ph = $('moon-ph'), right = SW - 4;
-    if (ph && ph.getComputedTextLength) {
+    if (square) fitSvgText(ph, right, 12);
+    else if (ph && ph.getComputedTextLength) {
       var tx = Math.max(phone ? 120 : 300, Math.min(px + 28, right - ph.getComputedTextLength()));
       ph.setAttribute('x', tx);
-      $('moon-g').setAttribute('transform', 'translate(' + (tx - 28) + ',-14)');
+      $('moon-g').setAttribute('transform', 'translate(' + (tx - 28) + ',' + py + ')');
       fitSvgText(ph, right, 12);
     }
   }
@@ -979,7 +984,7 @@
     }).join('') + '</select>';
     var row = function (k, ctl) { return '<div class="opt"><span>' + esc(_t(k)) + '</span>' + ctl + '</div>'; };
     var html = row('Language', langs) + row('Units', units) +
-      row('Layout', seg('layout', [['auto', 'Auto'], ['landscape', 'Landscape'], ['portrait', 'Portrait'], ['phone', 'Phone']], S.opts.layout || 'auto')) +
+      row('Layout', seg('layout', [['auto', 'Auto'], ['landscape', 'Landscape'], ['portrait', 'Portrait'], ['square', 'Square'], ['phone', 'Phone']], S.opts.layout || 'auto')) +
       row('Theme', seg('theme', [['auto', 'Auto'], ['navy', 'Navy'], ['black', 'Black'], ['light', 'Light']], S.opts.theme)) +
       row('Clock', seg('clock24', [['true', '24 h'], ['false', '12 h']], S.opts.clock24)) +
       row('Show seconds', seg('seconds', [['true', 'On'], ['false', 'Off']], S.opts.seconds)) +
@@ -988,7 +993,7 @@
       '<div class="meta">' + esc(S.cfg.title || a.station) + (a.hardware ? ' · ' + esc(a.hardware) : '') + '<br>' +
       esc(_t('Archive record')) + ': ' + dtf({ day: 'numeric', month: 'short', year: 'numeric' }).format(W(a.archiveTime)) + ' ' + hhmm(a.archiveTime) +
       ' (' + esc(_t('every {0} min', Math.round(a.interval / 60))) + ')<br>' +
-      esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', phone: 'Phone' }[S.layout] || 'Auto')) +
+      esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', square: 'Square', phone: 'Phone' }[S.layout] || 'Auto')) +
       ' · ' + (S.fitSize ? S.fitSize[0] + ' × ' + S.fitSize[1] + ' px' : '') + '<br>' +
       esc(_t('Times shown in station time')) + (stationZone() ? ' (' + esc(stationZone()) + ')' : '') + '<br>' +
       esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) + ')<br>' +
@@ -1421,8 +1426,11 @@
   // landscape: the console layout (1280 x 800), fitted to the screen
   // portrait:  tablet held upright (800 x 1518), fitted to the screen
   // phone:     narrow screens, one column (540 wide), fitted to the width and scrolling
-  var STAGES = { landscape: [1280, 800], portrait: [800, 1518], phone: [540, 2062] };
+  // square:    near-square screens (Apple HomeView, 1:1 smart displays), 1040 x 1070
+  var STAGES = { landscape: [1280, 800], portrait: [800, 1518], phone: [540, 2062], square: [1040, 1070] };
   function autoLayout(w, h) {
+    var r = w / h;
+    if (r >= 0.8 && r < 1.25) return 'square';
     if (w >= h) return 'landscape';
     return w < 600 ? 'phone' : 'portrait';
   }
@@ -1448,7 +1456,9 @@
     // Landscape on a screen wider than 16:10 (Echo Show 5/15/21, 16:9 tablets, browsers with
     // an address bar): the stage gets wider, up to 2.5:1, so the dashboard fills the width
     // and the extra space goes between the panels rather than in bands at the sides.
-    var xw = layout === 'landscape' ? clamp(H * w / h, W, 2000) - W : 0;   // exact, so no sliver is left at the sides
+    // The square layout widens the same way, up to 5:4, for screens a little wider than square.
+    var xw = layout === 'landscape' ? clamp(H * w / h, W, 2000) - W :
+      layout === 'square' ? clamp(H * w / h, W, H * 1.25) - W : 0;   // exact, so no sliver is left at the sides
     W += xw;
     if (S.xw !== xw) { S.xw = xw; $('stage').style.setProperty('--xw', xw + 'px'); }
     // phones scroll vertically; the other layouts fit the whole screen
@@ -1458,6 +1468,24 @@
     sizer.style.height = Math.round(H * s) + 'px';
     $('stage').style.transform = 'scale(' + s + ')';
     $('viewport').style.alignItems = H * s > h + 1 ? 'flex-start' : 'center';
+  }
+  // Options in the page address, for screens where Settings can't be used or isn't kept,
+  // such as a page cast to a Google Nest Hub, or a kiosk:
+  //   .../console/?lang=fr&units=metric&theme=auto&layout=landscape
+  // They are applied as if chosen in Settings (and kept, where the browser keeps settings).
+  function urlOptions() {
+    var q = {};
+    String(location.search || '').replace(/^\?/, '').split('&').forEach(function (kv) {
+      var i = kv.indexOf('='); if (i > 0) q[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+    });
+    var lang = q.lang || q.language;
+    if (lang && LANGS[lang]) { try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* not kept */ } S.urlLang = lang; }
+    var units = q.units || q.unit_system;
+    if (units && SYSTEMS[units]) { try { localStorage.setItem(UNIT_KEY, units); } catch (e) { /* not kept */ } S.urlUnits = units; }
+    var changed = false;
+    if (q.theme && ['auto', 'navy', 'black', 'light'].indexOf(q.theme) >= 0) { S.opts.theme = q.theme; changed = true; }
+    if (q.layout && (q.layout === 'auto' || STAGES[q.layout])) { S.opts.layout = q.layout; changed = true; }
+    if (changed) lsSet('opts', S.opts);
   }
   function init() {
     window.addEventListener('resize', fit);
@@ -1475,6 +1503,7 @@
     S.opts = lsGet('opts', null) || { theme: S.cfg.theme || 'auto', clock24: S.cfg.clock_24h !== false, seconds: true, wake: false };
     S.chIdx = lsGet('chIdx', 0) || 0;
     S.chartYear = lsGet('chartYear', '') || '';
+    urlOptions();
     S.unitKey = loadUnitKey();
     S.lang = loadLangKey();
     // A change made in another DivumWX/EcowittConsoleEmulator tab on the same site
