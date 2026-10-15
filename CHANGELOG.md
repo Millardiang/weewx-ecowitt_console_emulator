@@ -5,8 +5,6 @@ All notable changes to weewx-ecowitt_console_emulator are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
-## [Unreleased]
-
 ## [1.1.1] – 2026-10-15
 
 ### Added
