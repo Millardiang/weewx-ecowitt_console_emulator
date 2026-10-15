@@ -1,10 +1,10 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
 
 A full-screen, landscape dashboard for a wall or desk tablet, laid out like the
-Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
+Ecowitt WH2560 / HP2560 console, in a black, white or navy-blue palette: outdoor temperature
 ring, wind dial, selectable temperature/humidity channel, soil moisture / leaf
 wetness and lightning line, leak indicators, PM2.5 and CO₂, sun arc and moon
-phase, rain (traditional or piezo), and barometer with 3-hour trend and a
+phase, rain (traditional and/or piezo), and barometer with 3-hour trend and a
 pressure-tendency forecast (a moon replaces the sun between sunset and sunrise). The sky panel has a sun arc and, inside it, a moon track with moonrise/moonset times; the moon is worked out in the browser for the station's position, so WeeWX doesn't need the `ephem` package. The readings row includes VPD, always in kPa. Like the console, signal bars sit next to each
 reading and a battery icon only appears when a battery is low.
 
