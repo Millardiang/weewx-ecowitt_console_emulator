@@ -27,7 +27,7 @@ device is rotated:
 
 | Layout | Used when | Design size | Arrangement |
 |---|---|---|---|
-| Landscape | wider than tall | 1280 × 800, fitted to the screen | the console layout |
+| Landscape | wider than tall | 1280 × 800, fitted to the screen; on screens wider than 16:10 (Echo Show, 16:9 tablets) made wider, up to 2.5:1, so it always fills the width | the console layout |
 | Portrait | tablet held upright (600 px wide or more) | 800 × 1518, fitted to the screen, no scrolling | outdoor and wind gauges side by side, readings, sun/moon, channel rings, rain, barometer |
 | Phone | narrow screens (under 600 px) | 540 wide, fitted to the width, scrolls | one column; readings in 3 × 2; header on two rows; a narrower sun/moon drawing with larger text |
 
@@ -204,6 +204,9 @@ Share → "Add to Home Screen".
 * **Android:** Chrome → ⋮ → *Add to Home screen* opens it full screen. For a
   permanent wall display, a kiosk browser (e.g. Fully Kiosk Browser) works well.
 * **iPad:** Safari → Share → *Add to Home Screen*.
+* **Amazon Echo Show:** open the page in the Silk browser ("Alexa, open Silk"). The
+  dashboard fills the width of every Echo Show (5, 8, 10, 15, 21), below Silk's
+  address bar; the extra width goes between the panels.
 * Settings (⚙) → *Keep screen awake* stops the screen dimming (Wake Lock API;
   needs HTTPS or `localhost` on most browsers).
 
@@ -212,7 +215,7 @@ Share → "Add to Home Screen".
 | Toolbar button | Action |
 |---|---|
 | Charts | Full-screen charts with Day, Week, Month and Year tabs. The Year tab has a list: the last 12 months, or any calendar year in the skin's database (1 January to 31 December). Charts: temperature, indoor temperature, humidity, VPD (kPa, unless turned off), wind, wind direction (day), rain, barometer, solar radiation, UV. Rain is one chart with a separate column for the tipping gauge (blue) and the piezo sensor (violet) in each hour, day or month and the difference in the tooltip. The legend gives each gauge's total for today, this week, this month or this year (by tab): the same figures as the rain table. The bars cover the chart's whole span (27 hours, 7 days, 31 days, 12 months). Every chart has a tooltip: hover with a mouse, or tap/drag on a touch screen. Drawn in the current theme and display units |
-| Theme | Navy (console) → Black (OLED / night) → Light |
+| Theme | Auto (the default: Light from sunrise to sunset, Black from sunset to sunrise, switching by itself at the station's sunrise and sunset) → Navy (console) → Black (OLED / night) → Light. A short message shows which one is chosen |
 | CH | Switches the second pair of rings between the temperature/humidity channels that are reporting: Indoor, then each WN31 (CH1–CH8). Greyed out when only one channel reports |
 | Battery | Battery and signal of every sensor that reports them |
 | Refresh | Reload data now |
@@ -235,7 +238,8 @@ the page.
 
 * `title` – the name at the top of the dashboard; empty = the station name (`location` in `[Station]` of weewx.conf)
 * `language` – the default language (see [Languages](#languages-same-as-weewx-divumwx))
-* `theme`, `clock_24h`
+* `theme` – `auto` (default), `navy`, `black` or `light`; `theme_day` and `theme_night` – the themes `auto` uses by day and by night (`light` and `black`)
+* `clock_24h`
 * `timezone` – the station's time zone is read from the WeeWX machine; set it here
   (e.g. `timezone = Europe/Paris`) only if that comes out wrong
 * `windy_radar`, `windy_mode`, `windy_zoom` – the **Radar** button at the top left shows
