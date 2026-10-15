@@ -1,4 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
+# Version 1.1.1
 
 A full-screen, landscape dashboard for a wall or desk tablet, laid out like the
 Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
