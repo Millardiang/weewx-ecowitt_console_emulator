@@ -1438,7 +1438,9 @@
   // the browser's toolbars, else the window (some browsers report the window size late)
   function screenSize() {
     var vp = $('viewport'), w = vp && vp.clientWidth, h = vp && vp.clientHeight;
-    return [w || window.innerWidth || document.documentElement.clientWidth, h || window.innerHeight || document.documentElement.clientHeight];
+    w = w || window.innerWidth || document.documentElement.clientWidth;
+    h = h || window.innerHeight || document.documentElement.clientHeight;
+    return [w, h];
   }
   // re-fit if the size changed without a resize event (e.g. Silk on Echo Show, as its address bar settles)
   function checkFit() { var z = screenSize(); if (!S.fitSize || z[0] !== S.fitSize[0] || z[1] !== S.fitSize[1]) fit(); }
