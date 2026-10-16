@@ -31,6 +31,11 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   wider on tablets (iPad, Android) or taller on very tall screens, and square grows
   taller on screens a little taller than square. The extra space goes between the
   panels; the gauges keep their shape. (Phones scroll, as before.)
+- On iPad (and iPhone) a blank strip could be left under the toolbar: Safari measures
+  "100%" height with its toolbars shown, and a home-screen app leaves out the status
+  bar. The dashboard's full-screen box is now pinned to the screen's edges instead,
+  and any space it still doesn't reach under the toolbar is drawn in the toolbar's
+  colour.
 - On screens wider than 16:10 the landscape dashboard now fills the whole width (up to
   2.5:1) instead of leaving bands at the sides: Amazon Echo Show in the Silk browser
   (Show 5, 8, 10, 15, 21), 16:9 tablets, and browsers whose address bar shortens the
