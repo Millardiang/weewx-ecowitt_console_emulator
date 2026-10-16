@@ -1453,14 +1453,19 @@
       if (S.arch) safe(renderSky, 'sky');
     }
     var W = STAGES[layout][0], H = STAGES[layout][1];
-    // Landscape on a screen wider than 16:10 (Echo Show 5/15/21, 16:9 tablets, browsers with
-    // an address bar): the stage gets wider, up to 2.5:1, so the dashboard fills the width
-    // and the extra space goes between the panels rather than in bands at the sides.
-    // The square layout widens the same way, up to 5:4, for screens a little wider than square.
-    var xw = layout === 'landscape' ? clamp(H * w / h, W, 2000) - W :
-      layout === 'square' ? clamp(H * w / h, W, H * 1.25) - W : 0;   // exact, so no sliver is left at the sides
-    W += xw;
+    // The stage takes the screen's shape, so the dashboard fills it with no bands at the
+    // sides or at the top and bottom: on a wider screen it gets wider (--xw), on a taller
+    // one taller (--xh), and the extra space goes between the panels; gauges keep their
+    // shape. Landscape widens up to 2.5:1 (Echo Show), square up to 5:4. Phones scroll.
+    // Limits stop a layout chosen by hand on a very different screen stretching too far.
+    var xw = 0, xh = 0;
+    if (layout !== 'phone') {
+      if (w / h > W / H) xw = Math.min(H * w / h - W, layout === 'landscape' ? 2000 - W : layout === 'square' ? H * 1.25 - W : W * 0.6);
+      else xh = Math.min(W * h / w - H, H * 0.5);
+    }
+    W += xw; H += xh;   // exact, so no sliver is left at the edges
     if (S.xw !== xw) { S.xw = xw; $('stage').style.setProperty('--xw', xw + 'px'); }
+    if (S.xh !== xh) { S.xh = xh; $('stage').style.setProperty('--xh', xh + 'px'); }
     // phones scroll vertically; the other layouts fit the whole screen
     var s = layout === 'phone' ? w / W : Math.min(w / W, h / H);
     var sizer = $('sizer');

@@ -5,7 +5,7 @@ A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
 ring, wind dial, selectable temperature/humidity channel, soil moisture / leaf
 wetness and lightning line, leak indicators, PM2.5 and CO₂, sun arc and moon
-phase, rain (traditional and/or piezo), and barometer with 3-hour trend and a
+phase, rain (traditional or piezo), and barometer with 3-hour trend and a
 pressure-tendency forecast (a moon replaces the sun between sunset and sunrise). The sky panel has a sun arc and, inside it, a moon track with moonrise/moonset times; the moon is worked out in the browser for the station's position, so WeeWX doesn't need the `ephem` package. The readings row includes VPD, always in kPa. Like the console, signal bars sit next to each
 reading and a battery icon only appears when a battery is low.
 
@@ -41,13 +41,16 @@ The layout is chosen from the shape of the screen, so no setting is needed; see
 ### Layouts
 
 The page picks a layout from the shape of the screen and switches when the
-device is rotated:
+device is rotated. Each layout takes the exact shape of the screen, so the
+dashboard fills it with no empty bands at the sides or at the top and bottom: the
+extra width or height goes into the gaps between the panels, and the gauges keep
+their round shape.
 
 | Layout | Used when | Design size | Arrangement |
 |---|---|---|---|
-| Landscape | wider than tall | 1280 × 800, fitted to the screen; on screens wider than 16:10 (Echo Show, 16:9 tablets) made wider, up to 2.5:1, so it always fills the width | the console layout |
-| Portrait | tablet held upright (600 px wide or more) | 800 × 1518, fitted to the screen, no scrolling | outdoor and wind gauges side by side, readings, sun/moon, channel rings, rain, barometer |
-| Square | near-square screens (width:height 0.8–1.25), e.g. Apple HomeView | 1040 × 1070, fitted to the screen, made wider up to 5:4 | header; outdoor and wind gauges with lightning, soil and air quality beside them; readings; channel rings beside rain and barometer; sun/moon; toolbar |
+| Landscape | wider than tall | 1280 × 800, stretched to the screen's shape: wider up to 2.5:1 (Echo Show, 16:9), or taller (4:3, 5:4) | the console layout |
+| Portrait | tablet held upright (600 px wide or more) | 800 × 1518, stretched to the screen's shape (wider on most tablets), no scrolling | outdoor and wind gauges side by side, readings, sun/moon, channel rings, rain, barometer |
+| Square | near-square screens (width:height 0.8–1.25), e.g. Apple HomeView | 1040 × 1070, stretched to the screen's shape (wider up to 5:4, or taller) | header; outdoor and wind gauges with lightning, soil and air quality beside them; readings; channel rings beside rain and barometer; sun/moon; toolbar |
 | Phone | narrow screens (under 600 px) | 540 wide, fitted to the width, scrolls | one column; readings in 3 × 2; header on two rows; a narrower sun/moon drawing with larger text |
 
 **Settings → Layout** can force one of them (Auto, Landscape, Portrait, Square, Phone);

@@ -82,7 +82,7 @@ html, body {
   background: var(--bg); overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #sizer { position: relative; flex: none; overflow: hidden; margin: 0 auto; }
 #stage {
-  position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: 800px;
+  position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: calc(800px + var(--xh, 0px));
   background: var(--bg-grad); transform-origin: 0 0; overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
@@ -96,9 +96,9 @@ section { position: absolute; }
 
 /* dividers, as on the console */
 .sep { position: absolute; background: var(--line); }
-#sep-h1 { left: calc(790px + var(--xw, 0px)); top: 412px; width: 474px; height: 2px; }
-#sep-h2 { left: calc(790px + var(--xw, 0px)); top: 604px; width: 474px; height: 2px; }
-#sep-v  { left: calc(776px + var(--xw, 0px)); top: 424px; width: 2px; height: 310px; opacity: .7; }
+#sep-h1 { left: calc(790px + var(--xw, 0px)); top: calc(412px + var(--xh, 0px) * 0.55); width: 474px; height: 2px; }
+#sep-h2 { left: calc(790px + var(--xw, 0px)); top: calc(604px + var(--xh, 0px) * 0.8); width: 474px; height: 2px; }
+#sep-v  { left: calc(776px + var(--xw, 0px)); top: calc(424px + var(--xh, 0px) * 0.55); width: 2px; height: calc(310px + var(--xh, 0px) * .4); opacity: .7; }
 
 /* header */
 #hdr { position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: 60px; display: flex; align-items: center; padding: 0 22px; }
@@ -113,33 +113,33 @@ section { position: absolute; }
 #hdr-clock #time { display: inline-block; min-width: 140px; text-align: right; margin-left: 34px; }
 
 /* big gauges */
-#g-out { left: calc(18px + var(--xw, 0px) * .24); top: 62px; width: 340px; height: 340px; }
-#g-wind { left: calc(392px + var(--xw, 0px) * .74); top: 62px; width: 360px; height: 340px; }
+#g-out { left: calc(18px + var(--xw, 0px) * .24); top: calc(62px + var(--xh, 0px) * 0.2); width: 340px; height: 340px; }
+#g-wind { left: calc(392px + var(--xw, 0px) * .74); top: calc(62px + var(--xh, 0px) * 0.2); width: 360px; height: 340px; }
 
 /* right-hand top: soil / lightning, channel gauges */
-#rt-top { left: calc(790px + var(--xw, 0px)); top: 66px; width: 474px; height: 64px; font-size: 19px; font-weight: 700; }
+#rt-top { left: calc(790px + var(--xw, 0px)); top: calc(66px + var(--xh, 0px) * 0.2); width: 474px; height: 64px; font-size: 19px; font-weight: 700; }
 #soil { position: absolute; left: 0; top: 4px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 #light { position: absolute; right: 0; top: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 #light .lines { display: flex; flex-direction: column; line-height: 1.25; font-size: 18px; }
-#g-ch { left: calc(790px + var(--xw, 0px)); top: 136px; width: 474px; height: 272px; }
+#g-ch { left: calc(790px + var(--xw, 0px)); top: calc(136px + var(--xh, 0px) * 0.25); width: 474px; height: 272px; }
 
 /* stats + AQ */
-#stats { left: 8px; top: 424px; width: calc(764px + var(--xw, 0px)); height: 62px; display: grid; grid-template-columns: repeat(var(--ncol, 7), 1fr); text-align: center; }
+#stats { left: 8px; top: calc(424px + var(--xh, 0px) * 0.55); width: calc(764px + var(--xw, 0px)); height: 62px; display: grid; grid-template-columns: repeat(var(--ncol, 7), 1fr); text-align: center; }
 /* labels too long to sit side by side (some languages): equal columns, labels fitted to them */
 #stats.tight { grid-template-columns: repeat(var(--ncol, 7), minmax(0, 1fr)); column-gap: 4px; }
 #stats > div { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
 #stats .k { font-size: 17px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; }
 #stats.tight .k { overflow: hidden; text-overflow: ellipsis; }
 #stats .v { font-size: 28px; font-weight: 500; margin-top: 6px; white-space: nowrap; }
-#aq { left: 30px; top: 516px; width: 600px; height: 36px; display: flex; align-items: center; gap: 36px; font-size: 21px; font-weight: 700; white-space: nowrap; }
+#aq { left: 30px; top: calc(516px + var(--xh, 0px) * 0.65); width: 600px; height: 36px; display: flex; align-items: center; gap: 36px; font-size: 21px; font-weight: 700; white-space: nowrap; }
 #aq .grp { display: inline-flex; align-items: center; gap: 8px; }
 .aqi-dot { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
 
 /* sun arc / moon */
-#sky { left: calc(var(--xw, 0px) / 2); top: 548px; width: 776px; height: 200px; }
+#sky { left: calc(var(--xw, 0px) / 2); top: calc(548px + var(--xh, 0px) * 0.95); width: 776px; height: 200px; }
 
 /* rain */
-#rain { left: calc(790px + var(--xw, 0px)); top: 418px; width: 474px; height: 184px; }
+#rain { left: calc(790px + var(--xw, 0px)); top: calc(418px + var(--xh, 0px) * 0.55); width: 474px; height: 184px; }
 #rain .icon { position: absolute; left: 0; top: 30px; width: 96px; text-align: center; }
 #rain .src { display: inline-block; margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--fg-dim); border: 1.5px solid var(--line); border-radius: 10px; padding: 1px 9px; }
 #rain .rate { position: absolute; left: 112px; top: 14px; width: 180px; font-size: 20px; font-weight: 700; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -153,7 +153,7 @@ section { position: absolute; }
 #rain .list .row span:last-child { flex: none; }
 
 /* barometer */
-#baro { left: calc(790px + var(--xw, 0px)); top: 612px; width: 474px; height: 134px; }
+#baro { left: calc(790px + var(--xw, 0px)); top: calc(612px + var(--xh, 0px) * 0.8); width: 474px; height: 134px; }
 #baro .k { position: absolute; left: 0; top: 10px; font-size: 20px; font-weight: 700; color: var(--fg-dim); }
 #baro .reading { position: absolute; left: 0; top: 44px; white-space: nowrap; display: flex; align-items: baseline; gap: 10px; }
 #baro .mode { font-size: 22px; font-weight: 700; color: var(--fg-dim); }
@@ -185,8 +185,8 @@ section { position: absolute; }
 /* =====================================================================
    Portrait tablet: 800 x 1518, fitted to the screen
    ===================================================================== */
-body[data-layout="portrait"] #stage { width: 800px; height: 1518px; }
-body[data-layout="portrait"] #hdr { width: 800px; height: 98px; padding: 4px 14px 0; flex-wrap: wrap; align-content: flex-start; }
+body[data-layout="portrait"] #stage { width: calc(800px + var(--xw, 0px)); height: calc(1518px + var(--xh, 0px)); }
+body[data-layout="portrait"] #hdr { width: calc(800px + var(--xw, 0px)); height: 98px; padding: 4px 14px 0; flex-wrap: wrap; align-content: flex-start; }
 body[data-layout="portrait"] #hdr-l { height: 50px; }
 body[data-layout="portrait"] #hdr-clock { margin-left: auto; line-height: 50px; }
 body[data-layout="portrait"] #hdr-l { width: auto; gap: 10px; }
@@ -194,44 +194,44 @@ body[data-layout="portrait"] #hdr-left { gap: 10px; }
 body[data-layout="portrait"] #hdr-title { order: 3; flex: none; width: 100%; font-size: 26px; padding: 0; line-height: 40px; }
 body[data-layout="portrait"] #hdr-clock { font-size: 26px; }
 body[data-layout="portrait"] #hdr-clock #time { min-width: 112px; margin-left: 16px; }
-body[data-layout="portrait"] #rt-top { left: 16px; top: 102px; width: 768px; }
-body[data-layout="portrait"] #g-out { left: 34px; top: 154px; }
-body[data-layout="portrait"] #g-wind { left: 410px; top: 154px; }
-body[data-layout="portrait"] #stats { left: 12px; top: 508px; width: 776px; }
-body[data-layout="portrait"] #aq { left: 28px; top: 596px; width: 560px; }
-body[data-layout="portrait"] #sky { left: 12px; top: 636px; }
-body[data-layout="portrait"] #g-ch { left: 163px; top: 844px; }
-body[data-layout="portrait"] #sep-h1 { left: 24px; top: 1124px; width: 752px; }
-body[data-layout="portrait"] #rain { left: 163px; top: 1132px; }
-body[data-layout="portrait"] #sep-h2 { left: 24px; top: 1322px; width: 752px; }
-body[data-layout="portrait"] #baro { left: 163px; top: 1330px; }
+body[data-layout="portrait"] #rt-top { left: 16px; top: calc(102px + var(--xh, 0px) * 0.05); width: calc(768px + var(--xw, 0px)); }
+body[data-layout="portrait"] #g-out { left: calc(34px + var(--xw, 0px) * 0.25); top: calc(154px + var(--xh, 0px) * 0.12); }
+body[data-layout="portrait"] #g-wind { left: calc(410px + var(--xw, 0px) * 0.75); top: calc(154px + var(--xh, 0px) * 0.12); }
+body[data-layout="portrait"] #stats { left: 12px; top: calc(508px + var(--xh, 0px) * 0.3); width: calc(776px + var(--xw, 0px)); }
+body[data-layout="portrait"] #aq { left: 28px; top: calc(596px + var(--xh, 0px) * 0.35); width: 560px; }
+body[data-layout="portrait"] #sky { left: calc(12px + var(--xw, 0px) * 0.5); top: calc(636px + var(--xh, 0px) * 0.45); }
+body[data-layout="portrait"] #g-ch { left: calc(163px + var(--xw, 0px) * 0.5); top: calc(844px + var(--xh, 0px) * 0.62); }
+body[data-layout="portrait"] #sep-h1 { left: 24px; top: calc(1124px + var(--xh, 0px) * 0.78); width: calc(752px + var(--xw, 0px)); }
+body[data-layout="portrait"] #rain { left: calc(163px + var(--xw, 0px) * 0.5); top: calc(1132px + var(--xh, 0px) * 0.78); }
+body[data-layout="portrait"] #sep-h2 { left: 24px; top: calc(1322px + var(--xh, 0px) * 0.92); width: calc(752px + var(--xw, 0px)); }
+body[data-layout="portrait"] #baro { left: calc(163px + var(--xw, 0px) * 0.5); top: calc(1330px + var(--xh, 0px) * 0.92); }
 body[data-layout="portrait"] #sep-v { display: none; }
-body[data-layout="portrait"] #toolbar { width: 800px; }
+body[data-layout="portrait"] #toolbar { width: calc(800px + var(--xw, 0px)); }
 
 /* Square: near-square screens such as Apple HomeView (1088 x 1088). 1040 x 1070, made
    wider (up to 5:4) on screens a little wider than square, like landscape. Row by row:
    header; outdoor ring, wind dial and a column with lightning, soil and air quality;
    readings; channel rings beside rain and barometer; sun/moon drawing; toolbar. Extra
    side padding keeps the header clear of rounded screen corners. */
-body[data-layout="square"] #stage { width: calc(1040px + var(--xw, 0px)); height: 1070px; }
+body[data-layout="square"] #stage { width: calc(1040px + var(--xw, 0px)); height: calc(1070px + var(--xh, 0px)); }
 body[data-layout="square"] #hdr { width: calc(1040px + var(--xw, 0px)); padding: 0 34px; }
 body[data-layout="square"] #hdr-l { width: auto; }
 body[data-layout="square"] #hdr-title { font-size: 24px; padding: 0 12px; }
 body[data-layout="square"] #hdr-clock #time { margin-left: 14px; min-width: 112px; }
-body[data-layout="square"] #g-out { left: calc(14px + var(--xw, 0px) * .2); top: 66px; }
-body[data-layout="square"] #g-wind { left: calc(360px + var(--xw, 0px) * .55); top: 66px; }
-body[data-layout="square"] #rt-top { left: calc(730px + var(--xw, 0px)); top: 74px; width: 296px; height: 112px; }
+body[data-layout="square"] #g-out { left: calc(14px + var(--xw, 0px) * .2); top: calc(66px + var(--xh, 0px) * 0.15); }
+body[data-layout="square"] #g-wind { left: calc(360px + var(--xw, 0px) * .55); top: calc(66px + var(--xh, 0px) * 0.15); }
+body[data-layout="square"] #rt-top { left: calc(730px + var(--xw, 0px)); top: calc(74px + var(--xh, 0px) * 0.15); width: 296px; height: 112px; }
 body[data-layout="square"] #light { left: 0; right: auto; top: 0; }
 body[data-layout="square"] #soil { top: 64px; }
-body[data-layout="square"] #aq { left: calc(734px + var(--xw, 0px)); top: 210px; width: 292px; height: auto; flex-direction: column; align-items: flex-start; gap: 14px; }
-body[data-layout="square"] #stats { left: 12px; top: 420px; width: calc(1016px + var(--xw, 0px)); }
-body[data-layout="square"] #g-ch { left: calc(10px + var(--xw, 0px) * .25); top: 496px; }
-body[data-layout="square"] #rain { left: calc(552px + var(--xw, 0px)); top: 496px; }
+body[data-layout="square"] #aq { left: calc(734px + var(--xw, 0px)); top: calc(210px + var(--xh, 0px) * 0.2); width: 292px; height: auto; flex-direction: column; align-items: flex-start; gap: 14px; }
+body[data-layout="square"] #stats { left: 12px; top: calc(420px + var(--xh, 0px) * 0.4); width: calc(1016px + var(--xw, 0px)); }
+body[data-layout="square"] #g-ch { left: calc(10px + var(--xw, 0px) * .25); top: calc(496px + var(--xh, 0px) * 0.55); }
+body[data-layout="square"] #rain { left: calc(552px + var(--xw, 0px)); top: calc(496px + var(--xh, 0px) * 0.55); }
 body[data-layout="square"] #sep-h1 { display: none; }
-body[data-layout="square"] #sep-h2 { left: calc(552px + var(--xw, 0px)); top: 684px; width: 474px; }
-body[data-layout="square"] #baro { left: calc(552px + var(--xw, 0px)); top: 690px; }
+body[data-layout="square"] #sep-h2 { left: calc(552px + var(--xw, 0px)); top: calc(684px + var(--xh, 0px) * 0.75); width: 474px; }
+body[data-layout="square"] #baro { left: calc(552px + var(--xw, 0px)); top: calc(690px + var(--xh, 0px) * 0.75); }
 body[data-layout="square"] #sep-v { display: none; }
-body[data-layout="square"] #sky { left: calc(132px + var(--xw, 0px) / 2); top: 818px; }
+body[data-layout="square"] #sky { left: calc(132px + var(--xw, 0px) / 2); top: calc(818px + var(--xh, 0px) * 0.95); }
 body[data-layout="square"] #toolbar { width: calc(1040px + var(--xw, 0px)); }
 
 /* =====================================================================

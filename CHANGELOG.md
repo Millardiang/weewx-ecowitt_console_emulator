@@ -5,6 +5,8 @@ All notable changes to weewx-ecowitt_console_emulator are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
+## [Unreleased]
+
 ## [1.1.1] – 2026-10-15
 
 ### Added
@@ -24,6 +26,11 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   chose a theme keeps it; Settings → Theme → Auto (or the theme button) switches to it.
 
 ### Fixed
+- Every layout now fills the whole screen with no empty bands at the top and bottom
+  or at the sides: landscape grows taller on 4:3 and 5:4 screens, portrait grows
+  wider on tablets (iPad, Android) or taller on very tall screens, and square grows
+  taller on screens a little taller than square. The extra space goes between the
+  panels; the gauges keep their shape. (Phones scroll, as before.)
 - On screens wider than 16:10 the landscape dashboard now fills the whole width (up to
   2.5:1) instead of leaving bands at the sides: Amazon Echo Show in the Silk browser
   (Show 5, 8, 10, 15, 21), 16:9 tablets, and browsers whose address bar shortens the
