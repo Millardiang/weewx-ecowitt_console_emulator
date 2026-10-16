@@ -67,7 +67,7 @@ body[data-theme="light"] {
 
 * { box-sizing: border-box; }
 html, body {
-  margin: 0; height: 100%; overflow: hidden;
+  margin: 0; min-height: 100%; overflow: hidden;
   background: var(--bg); color: var(--fg);
   font-family: "Roboto Condensed", "Arial Narrow", Roboto, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -77,9 +77,16 @@ html, body {
 /* The stage is drawn at a fixed design size and scaled to the screen. #sizer has
    the scaled size so the page scrolls correctly when the stage is taller than the
    screen (phone layout). */
-/* top/right/bottom/left rather than 'inset' (not in older browsers, e.g. Silk on some Echo Shows) */
-#viewport { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  background: var(--bg); overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* Pinned to all four edges of the screen: top/right/bottom/left rather than 'inset'
+   (not in older browsers, e.g. Silk on some Echo Shows), and no 'height: 100%', which
+   in Safari (iPad, iPhone) is the height with its toolbars shown and, in a home-screen
+   app, leaves out the status bar, so a strip was left under the dashboard's toolbar.
+   The lower half of the background is the toolbar's colour, so any space the stage
+   doesn't reach at the bottom reads as part of the toolbar, not a blank band. */
+#viewport { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--bg); background: linear-gradient(to bottom, var(--bg) 50%, var(--toolbar) 50%);
+  overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+body[data-layout="phone"] #viewport { background: var(--bg); }
 #sizer { position: relative; flex: none; overflow: hidden; margin: 0 auto; }
 #stage {
   position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: calc(800px + var(--xh, 0px));
@@ -268,7 +275,7 @@ body[data-layout="phone"] #toolbar svg { width: 30px; height: 30px; }
    Full-screen panels: charts, radar, sensors, settings.
    They sit outside the scaled dashboard and fill the real screen.
    ===================================================================== */
-#overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: var(--bg); display: flex; }
+#overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 50; background: var(--bg); display: flex; }
 #overlay[hidden] { display: none; }
 #ov-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-grad); color: var(--fg); }
 #ov-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
