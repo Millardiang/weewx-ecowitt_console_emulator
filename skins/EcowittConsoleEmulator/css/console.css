@@ -109,15 +109,21 @@ section { position: absolute; }
 
 /* header */
 #hdr { position: absolute; left: 0; top: 0; width: calc(1280px + var(--xw, 0px)); height: 60px; display: flex; align-items: center; padding: 0 22px; }
-#hdr-l { display: flex; align-items: center; gap: 14px; width: 400px; flex: none; }
+/* the chips and the clock share the space either side of the title equally, so the
+   title sits in the middle of the screen and takes what room it needs */
+#hdr-l { display: flex; align-items: center; gap: 14px; flex: 1 0 0; }
 #hdr-left { display: flex; align-items: center; gap: 14px; }
-#hdr-title { flex: 1; min-width: 0; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 16px; }
+/* The station title is the header's hero: the largest text in it, centred between the
+   status chips and the clock. Long names are made smaller to fit (console.js fitTitle)
+   before they are cut short. Margins, not padding, so the fitting sees the text box. */
+#hdr-title { flex: 0 1 auto; min-width: 0; margin: 0 18px; text-align: center; font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 0 4px; }
 #hdr-left .chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 7px; border: 1.5px solid var(--line); color: var(--fg-dim); font-size: 17px; font-weight: 700; text-decoration: none; }
 #hdr-left .chip.radar { color: var(--fg); background: rgba(95,183,255,.14); border-color: var(--wind); font-family: inherit; cursor: pointer; }
 #hdr-left .chip.radar:active { background: rgba(95,183,255,.3); }
 #hdr-leak { display: flex; gap: 5px; }
-#hdr-clock { font-size: 32px; font-weight: 500; white-space: nowrap; }
-#hdr-clock #time { display: inline-block; min-width: 140px; text-align: right; margin-left: 34px; }
+#hdr-clock { flex: 1 0 0; text-align: right; font-size: 26px; font-weight: 500; white-space: nowrap; }
+#hdr-clock #date { color: var(--fg-dim); }
+#hdr-clock #time { display: inline-block; min-width: 116px; text-align: right; margin-left: 22px; }
 
 /* big gauges */
 #g-out { left: calc(18px + var(--xw, 0px) * .24); top: calc(62px + var(--xh, 0px) * 0.2); width: 340px; height: 340px; }
@@ -196,11 +202,11 @@ body[data-layout="portrait"] #stage { width: calc(800px + var(--xw, 0px)); heigh
 body[data-layout="portrait"] #hdr { width: calc(800px + var(--xw, 0px)); height: 98px; padding: 4px 14px 0; flex-wrap: wrap; align-content: flex-start; }
 body[data-layout="portrait"] #hdr-l { height: 50px; }
 body[data-layout="portrait"] #hdr-clock { margin-left: auto; line-height: 50px; }
-body[data-layout="portrait"] #hdr-l { width: auto; gap: 10px; }
+body[data-layout="portrait"] #hdr-l { flex: none; width: auto; gap: 10px; }
 body[data-layout="portrait"] #hdr-left { gap: 10px; }
-body[data-layout="portrait"] #hdr-title { order: 3; flex: none; width: 100%; font-size: 26px; padding: 0; line-height: 40px; }
-body[data-layout="portrait"] #hdr-clock { font-size: 26px; }
-body[data-layout="portrait"] #hdr-clock #time { min-width: 112px; margin-left: 16px; }
+body[data-layout="portrait"] #hdr-title { order: 3; flex: none; width: 100%; margin: 0; font-size: 40px; padding: 0; line-height: 44px; }
+body[data-layout="portrait"] #hdr-clock { flex: none; font-size: 24px; }
+body[data-layout="portrait"] #hdr-clock #time { min-width: 104px; margin-left: 16px; }
 body[data-layout="portrait"] #rt-top { left: 16px; top: calc(102px + var(--xh, 0px) * 0.05); width: calc(768px + var(--xw, 0px)); }
 body[data-layout="portrait"] #g-out { left: calc(34px + var(--xw, 0px) * 0.25); top: calc(154px + var(--xh, 0px) * 0.12); }
 body[data-layout="portrait"] #g-wind { left: calc(410px + var(--xw, 0px) * 0.75); top: calc(154px + var(--xh, 0px) * 0.12); }
@@ -223,8 +229,9 @@ body[data-layout="portrait"] #toolbar { width: calc(800px + var(--xw, 0px)); }
 body[data-layout="square"] #stage { width: calc(1040px + var(--xw, 0px)); height: calc(1070px + var(--xh, 0px)); }
 body[data-layout="square"] #hdr { width: calc(1040px + var(--xw, 0px)); padding: 0 34px; }
 body[data-layout="square"] #hdr-l { width: auto; }
-body[data-layout="square"] #hdr-title { font-size: 24px; padding: 0 12px; }
-body[data-layout="square"] #hdr-clock #time { margin-left: 14px; min-width: 112px; }
+body[data-layout="square"] #hdr-title { font-size: 36px; margin: 0 14px; }
+body[data-layout="square"] #hdr-clock { font-size: 24px; }
+body[data-layout="square"] #hdr-clock #time { margin-left: 14px; min-width: 104px; }
 body[data-layout="square"] #g-out { left: calc(14px + var(--xw, 0px) * .2); top: calc(66px + var(--xh, 0px) * 0.15); }
 body[data-layout="square"] #g-wind { left: calc(360px + var(--xw, 0px) * .55); top: calc(66px + var(--xh, 0px) * 0.15); }
 body[data-layout="square"] #rt-top { left: calc(730px + var(--xw, 0px)); top: calc(74px + var(--xh, 0px) * 0.15); width: 296px; height: 112px; }
@@ -246,11 +253,11 @@ body[data-layout="square"] #toolbar { width: calc(1040px + var(--xw, 0px)); }
    ===================================================================== */
 body[data-layout="phone"] #stage { width: 540px; height: 2062px; }
 body[data-layout="phone"] #hdr { width: 540px; height: 140px; padding: 6px 14px 0; flex-wrap: wrap; align-content: flex-start; row-gap: 2px; }
-body[data-layout="phone"] #hdr-l { width: 100%; height: 44px; justify-content: space-between; }
+body[data-layout="phone"] #hdr-l { flex: none; width: 100%; height: 44px; justify-content: space-between; }
 body[data-layout="phone"] #hdr-left { gap: 10px; }
-body[data-layout="phone"] #hdr-title { flex: none; width: 100%; font-size: 26px; padding: 0 4px; line-height: 36px; }
+body[data-layout="phone"] #hdr-title { flex: none; width: 100%; margin: 0 4px; font-size: 40px; padding: 0; line-height: 48px; }
 body[data-layout="phone"] #hdr-leak { align-items: center; }
-body[data-layout="phone"] #hdr-clock { width: 100%; text-align: center; font-size: 30px; }
+body[data-layout="phone"] #hdr-clock { flex: none; width: 100%; text-align: center; font-size: 26px; }
 body[data-layout="phone"] #hdr-clock #time { min-width: 0; margin-left: 18px; }
 body[data-layout="phone"] #rt-top { left: 14px; top: 146px; width: 512px; height: 68px; font-size: 18px; }
 body[data-layout="phone"] #g-out { left: 100px; top: 218px; }

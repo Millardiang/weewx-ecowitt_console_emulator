@@ -143,6 +143,14 @@
     fs = base * 0.9; el.style.fontSize = fs + 'px';
     while ((wide() || el.offsetHeight > fs * 1.08 * 2 + 1) && fs > 10) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
   }
+  // The station title: as large as the layout gives it, made smaller (to about 60%) for a
+  // long name rather than cut short. Run again when the header's width or the font changes.
+  function fitTitle() {
+    var el = $('hdr-title'); if (!el) return;
+    el.style.fontSize = '';
+    var base = parseFloat(getComputedStyle(el).fontSize), fs = base;
+    while (el.scrollWidth > el.clientWidth + 1 && fs > base * 0.6) { fs -= 1; el.style.fontSize = fs + 'px'; }
+  }
   // The same for SVG text that must stay left of x = right
   function fitSvgText(el, right, min) {
     if (!el || !el.getComputedTextLength) return;
@@ -486,6 +494,7 @@
     // title: skin.conf [Extras] title, or the station name ([Station] location in weewx.conf)
     var title = S.cfg.title || a.station || '';
     if ($('hdr-title').textContent !== title) $('hdr-title').textContent = title;
+    fitTitle();
     var lb = $('low-batt'); if (lb) lb.onclick = showSensors;
     var rb = $('radar-btn'); if (rb) rb.onclick = showRadar;
 
@@ -1453,6 +1462,7 @@
       document.body.setAttribute('data-layout', layout);
       S.layout = layout;
       if (S.arch) safe(renderSky, 'sky');
+      S.titleFit = null;
     }
     var W = STAGES[layout][0], H = STAGES[layout][1];
     // The stage takes the screen's shape, so the dashboard fills it with no bands at the
@@ -1475,6 +1485,9 @@
     sizer.style.height = Math.round(H * s) + 'px';
     $('stage').style.transform = 'scale(' + s + ')';
     $('viewport').style.alignItems = H * s > h + 1 ? 'flex-start' : 'center';
+    // the header changed width: fit the title to it again
+    var tk = S.layout + ':' + xw;
+    if (S.titleFit !== tk) { S.titleFit = tk; fitTitle(); }
   }
   // Options in the page address, for screens where Settings can't be used or isn't kept,
   // such as a page cast to a Google Nest Hub, or a kiosk:
