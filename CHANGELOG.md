@@ -24,7 +24,13 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   weewx-EcowittGateway) and asks for the broker and topic; for unattended installs,
   `--live=mqtt --mqtt-host=... --mqtt-port=... --mqtt-topic=... --mqtt-user=...
   --mqtt-password=...`.
-- Settings shows "· MQTT" after the live file's name when live data comes from MQTT.
+- The green live-data icon pulses briefly each time new live data arrives (a soft
+  glow instead where the device asks for reduced motion).
+- The header shows where live data comes from, beside the live-data icon: **Loop**,
+  **MQTT** or **Loop + MQTT** (dimmed while live data isn't arriving); Settings shows
+  the same after the live file's name. `live.json` records which sources each write
+  was made from (`sources`), so with `source = both` the tag drops to **Loop** if
+  MQTT stops.
 - **Forecast** button and panel: a 7-day, hour-by-hour forecast for the station's
   position from Open-Meteo (free, no key; fetched by the browser and kept for 30
   minutes). A card for each day; for the chosen day its conditions, sunrise and

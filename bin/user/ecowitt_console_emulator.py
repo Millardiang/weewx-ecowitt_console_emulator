@@ -1549,6 +1549,7 @@ class EcowittConsoleEmulatorLive(StdService):
         self.cache = {}          # from loop packets, merged as they arrive
         self.mqtt_data = {}      # the gateway's latest MQTT message (each one is a full set)
         self.mqtt_time = 0
+        self.loop_time = 0
         # with source = both, MQTT values older than this no longer hide the loop's
         self.mqtt_stale = to_int(conf.get('mqtt_stale', 120))
         self.last_write = 0
@@ -1583,6 +1584,7 @@ class EcowittConsoleEmulatorLive(StdService):
         try:
             conv = self.converter.convertDict(event.packet)
             with self.lock:
+                self.loop_time = time.time()
                 for k, v in conv.items():
                     if v is not None or k == 'windDir':
                         self.cache[k] = _round(v, 3) if isinstance(v, float) else v
@@ -1609,9 +1611,16 @@ class EcowittConsoleEmulatorLive(StdService):
     def _write(self, now):
         with self.lock:
             data = dict(self.cache)
-            if self.source == 'mqtt' or now - self.mqtt_time < self.mqtt_stale:
+            mqtt_fresh = self.source == 'mqtt' or now - self.mqtt_time < self.mqtt_stale
+            if mqtt_fresh:
                 data.update(self.mqtt_data)
-            payload = {'written': int(now), 'units': 'METRICWX', 'data': data}
+            # what this write was made from, shown on the dashboard: loop, mqtt or both
+            sources = []
+            if self.source in ('loop', 'both') and now - self.loop_time < self.mqtt_stale:
+                sources.append('loop')
+            if self.source in ('mqtt', 'both') and self.mqtt_data and mqtt_fresh:
+                sources.append('mqtt')
+            payload = {'written': int(now), 'units': 'METRICWX', 'sources': sources, 'data': data}
         with self.write_lock:
             try:
                 os.makedirs(os.path.dirname(self.path), exist_ok=True)

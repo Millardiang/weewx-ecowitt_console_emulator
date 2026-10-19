@@ -481,13 +481,32 @@
     $('time').textContent = wallHM(d, S.opts.seconds);
     if (Math.floor(t) % 10 === 0) safe(renderHeader, 'header');
   }
+  // Where live data comes from: Loop (WeeWX loop packets, or the driver's ecwLoop.json),
+  // MQTT (the gateway's own messages) or Loop + MQTT. While live data is fresh, what the
+  // latest live.json was made from (so 'both' shows Loop alone if MQTT has stopped);
+  // otherwise what is set up.
+  function liveSources() {
+    if (liveFresh() && S.live.sources && S.live.sources.length) return S.live.sources;
+    var src = S.cfg.live_url === 'live.json' ? S.cfg.live_source : null;
+    return src === 'both' ? ['loop', 'mqtt'] : src === 'mqtt' ? ['mqtt'] : ['loop'];
+  }
+  function liveSourceLabel() { return liveSources().map(function (x) { return x === 'mqtt' ? 'MQTT' : 'Loop'; }).join(' + '); }
+  // A short pulse of the green live-data icon each time new live data arrives
+  function pulseLive() {
+    var ic = $('live-ic');
+    if (!ic || !liveFresh()) return;
+    ic.classList.remove('pulse');
+    void ic.offsetWidth;                 // restart the animation if it is still running
+    ic.classList.add('pulse');
+  }
   function renderHeader() {
     var col, tip, a = S.arch;
     var archAge = a ? now() - a.archiveTime : Infinity, maxArch = ((a && a.interval) || 300) * 2 + 180;
     if (liveFresh()) { col = 'var(--good)'; tip = _t('Live data, {0} s old', Math.round(now() - S.live.written)); }
     else if (archAge < maxArch) { col = 'var(--warn)'; tip = _t('Archive data only ({0} min old)', Math.round(archAge / 60)); }
     else { col = 'var(--bad)'; tip = _t('Data is stale'); }
-    var h = '<span title="' + esc(tip) + '">' + I.wifi(col) + '</span>';
+    var src = liveSourceLabel();
+    var h = '<span class="src-tag' + (liveFresh() ? '' : ' stale') + '" title="' + esc(_t('Live data') + ': ' + src) + '">' + esc(src) + '</span>';
     ['ws90', 'ws85', 'ws80', 'wh69', 'wh65'].some(function (b) { var x = sigFor(b); if (x) { h += x; return true; } return false; });
     var low = lowSensors();
     if (low.length) h += '<span class="tap" id="low-batt" title="' + esc(_t('Low battery: {0}', low.map(function (s) { return tl(s.label); }).join(', '))) + '">' + I.battery(0.1, true, 12) + '</span>';
@@ -499,7 +518,15 @@
     }
     var links = S.cfg.links || {};
     Object.keys(links).forEach(function (k) { h += '<a class="chip" href="' + esc(links[k]) + '" target="_blank" rel="noopener">' + esc(k) + '</a>'; });
-    $('hdr-left').innerHTML = h;
+    // The live-data icon stays the same element (only its colour and tip change), so a
+    // pulse for new data isn't cut short when the rest of the header is redrawn
+    var ic = $('live-ic');
+    if (!ic) { $('hdr-left').innerHTML = '<span id="live-ic"></span>'; ic = $('live-ic'); }
+    ic.title = tip;
+    if (ic.getAttribute('data-col') !== col) { ic.innerHTML = I.wifi(col); ic.setAttribute('data-col', col); }
+    if (!liveFresh()) ic.classList.remove('pulse');
+    while (ic.nextSibling) ic.parentNode.removeChild(ic.nextSibling);
+    ic.insertAdjacentHTML('afterend', h);
     // title: skin.conf [Extras] title, or the station name ([Station] location in weewx.conf)
     var title = S.cfg.title || a.station || '';
     if ($('hdr-title').textContent !== title) $('hdr-title').textContent = title;
@@ -1014,8 +1041,7 @@
       esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', square: 'Square', phone: 'Phone' }[S.layout] || 'Auto')) +
       ' · ' + (S.fitSize ? S.fitSize[0] + ' × ' + S.fitSize[1] + ' px' : '') + '<br>' +
       esc(_t('Times shown in station time')) + (stationZone() ? ' (' + esc(stationZone()) + ')' : '') + '<br>' +
-      esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) +
-        (S.cfg.live_url === 'live.json' && S.cfg.live_source && S.cfg.live_source !== 'loop' ? ' · MQTT' : '') + ')<br>' +
+      esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) + ' · ' + esc(liveSourceLabel()) + ')<br>' +
       'EcowittConsoleEmulator ' + esc(a.version) + ' · WeeWX ' + esc(a.weewx) + '</div>';
     openOverlay('Settings', html);
     $('unit-sel').onchange = function () { setUnitSystem(this.value); };
@@ -1719,6 +1745,7 @@
         while (S.windBuf.length && j.written - S.windBuf[0].t > 600) S.windBuf.shift();
       }
       renderAll();
+      pulseLive();
     }).catch(function () { S.liveFails++; safe(renderHeader, 'header'); });
   }
   // Accept the driver's ecwLoop.json (a flat loop packet in any unit system) or the
