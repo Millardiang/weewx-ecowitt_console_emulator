@@ -177,7 +177,8 @@ section { position: absolute; }
 #baro .fc { position: absolute; right: -6px; top: 22px; }
 
 /* toolbar */
-#toolbar { position: absolute; left: 0; bottom: 0; width: calc(1280px + var(--xw, 0px)); height: 50px; background: var(--toolbar); display: grid; grid-template-columns: repeat(6, 1fr); }
+#toolbar { position: absolute; left: 0; bottom: 0; width: calc(1280px + var(--xw, 0px)); height: 50px; background: var(--toolbar); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+#toolbar button[hidden] { display: none; }
 #toolbar button { appearance: none; background: none; border: 0; color: var(--toolbar-fg); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 #toolbar button:active { background: rgba(255,255,255,.15); }
 #toolbar svg { width: 28px; height: 28px; }
@@ -342,6 +343,111 @@ body[data-layout="phone"] #toolbar svg { width: 30px; height: 30px; }
   #ov-title { font-size: 20px; }
   #ov-tabs button { padding: 6px 14px; }
   .chart { padding: 8px 8px 4px; }
+}
+
+/* =====================================================================
+   Forecast (Open-Meteo) and Records panels
+   ===================================================================== */
+svg.mini { flex: none; display: block; }
+.fc, .rec { max-width: 1500px; margin: 0 auto; }
+/* seven day cards: in a row, scrolling sideways on narrow screens */
+.fc-days { display: grid; grid-template-columns: repeat(7, minmax(118px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.fc-day { appearance: none; font: inherit; color: var(--fg); background: var(--panel-bg); border: 2px solid var(--line); border-radius: 14px;
+  padding: 10px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-width: 0; }
+.fc-day.on { border-color: var(--wind); box-shadow: 0 0 0 2px var(--wind) inset; }
+.fc-dn { font-size: 20px; font-weight: 700; }
+.fc-dd { font-size: 15px; color: var(--fg-dim); }
+.fc-ic { height: 56px; display: flex; align-items: center; }
+.fc-hl { display: flex; align-items: baseline; gap: 10px; }
+.fc-hl b { font-size: 28px; font-weight: 700; }
+.fc-hl i { font-style: normal; font-size: 21px; font-weight: 500; opacity: .85; }
+.fc-dr { display: flex; align-items: center; gap: 3px; font-size: 16px; font-weight: 700; margin-top: 2px; }
+.fc-dr small { font-size: 12px; color: var(--fg-dim); font-weight: 500; margin-left: 1px; }
+.fc-dr em { font-style: normal; font-size: 13px; color: var(--wind); margin-left: 5px; font-weight: 500; }
+/* the chosen day in a line */
+.fc-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; margin: 16px 2px 12px; }
+.fc-what { display: flex; align-items: center; gap: 8px; font-size: 21px; margin-right: 6px; }
+.fc-chip { display: flex; align-items: center; gap: 8px; }
+.fc-chip > span { display: flex; flex-direction: column; line-height: 1.15; }
+.fc-chip small { font-size: 13px; color: var(--fg-dim); font-weight: 500; }
+.fc-chip b { font-size: 20px; font-weight: 700; white-space: nowrap; }
+.fc-chip b small { font-size: 13px; }
+.uv { display: inline-block; min-width: 26px; padding: 0 6px; border-radius: 6px; color: #10142e; font-weight: 700; text-align: center; line-height: 1.35; }
+/* hour by hour, the labels staying put while the hours scroll */
+.fc-hours { overflow-x: auto; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel-bg); margin-bottom: 16px; }
+#ov-body .fc-hours table { width: auto; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+#ov-body .fc-hours th, #ov-body .fc-hours td { padding: 6px 7px; border-bottom: 1px solid var(--grid); text-align: center; font-size: 18px; }
+#ov-body .fc-hours tr:last-child th, #ov-body .fc-hours tr:last-child td { border-bottom: 0; }
+#ov-body .fc-hours th { position: sticky; left: 0; z-index: 1; background: var(--panel-bg); text-align: left; color: var(--fg); font-weight: 700;
+  border-right: 1px solid var(--line); }
+#ov-body .fc-hours th { display: table-cell; }
+.fc-hours th > svg, .fc-hours th > span { display: inline-block; vertical-align: middle; }
+.fc-hours th > span { margin-left: 6px; line-height: 1.1; }
+.fc-hours th small { display: block; font-size: 12px; color: var(--fg-dim); font-weight: 500; }
+.fc-hours td { min-width: 52px; }
+.fc-hours .fc-time td { font-size: 15px; color: var(--fg-dim); font-weight: 700; }
+.fc-hours .fc-icons td { padding: 2px 4px; }
+.fc-hours .fc-icons td svg { margin: 0 auto; }
+#ov-body .fc-hours td.fc-sun { min-width: 0; padding: 4px 2px; background: rgba(255,210,58,.08); border-left: 1px dashed #ffb21a; border-right: 1px dashed #ffb21a; }
+.fc-hours td.fc-sun svg { margin: 0 auto; }
+.fc-hours td.fc-sun b { font-size: 13px; color: #ffb21a; writing-mode: vertical-rl; transform: rotate(180deg); }
+.fc-hours .wet { color: #5fb7ff; font-weight: 700; }
+.fc-hours .dry { color: var(--fg-faint); }
+.fc-hours .pop { display: block; font-size: 12px; color: var(--fg-dim); }
+.fc-arr { display: inline-block; vertical-align: middle; margin-left: 3px; }
+.fc-charts { margin-top: 4px; }
+.fc-src { margin-top: 14px; text-align: center; font-size: 14px; color: var(--fg-dim); }
+.fc-src a { color: var(--wind); }
+.fc-retry { appearance: none; font: inherit; font-size: 18px; font-weight: 700; margin-top: 14px; color: #fff; background: var(--toolbar);
+  border: 0; border-radius: 22px; padding: 8px 22px; cursor: pointer; }
+/* records: every period side by side; one at a time (tabs) on narrow screens */
+.rec-tabs { display: none; justify-content: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.rec-tabs button { appearance: none; font: inherit; font-size: 17px; font-weight: 700; color: var(--fg-dim); background: none;
+  border: 2px solid var(--line); border-radius: 22px; padding: 5px 14px; cursor: pointer; }
+.rec-tabs button.on { color: #fff; background: var(--toolbar); border-color: var(--toolbar); }
+#ov-body table.records { background: var(--panel-bg); border: 1.5px solid var(--line); border-radius: 12px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+#ov-body table.records th, #ov-body table.records td { border-bottom: 1px solid var(--grid); vertical-align: middle; padding: 8px 12px; }
+#ov-body table.records tr:last-child th, #ov-body table.records tr:last-child td { border-bottom: 0; }
+#ov-body table.records tr:first-child th { font-size: 17px; text-align: center; color: var(--fg-dim); }
+table.records th > svg, table.records th > span { display: inline-block; vertical-align: middle; }
+table.records th > span { margin-left: 8px; line-height: 1.15; }
+table.records th em { font-style: normal; color: var(--fg-dim); font-weight: 500; }
+table.records th small { display: block; font-size: 13px; color: var(--fg-dim); font-weight: 500; }
+table.records td { text-align: center; }
+.rec-hi, .rec-lo { display: flex; align-items: baseline; justify-content: center; gap: 5px; white-space: nowrap; line-height: 1.3; }
+.rec-hi + .rec-lo { margin-top: 3px; }
+.rec-hi .arr { color: #ff7a3d; font-weight: 700; }
+.rec-lo .arr { color: #5fb7ff; font-weight: 700; }
+.rec-hi b, .rec-lo b { font-size: 21px; }
+.rec-hi small, .rec-lo small { font-size: 13px; color: var(--fg-dim); min-width: 0; }
+/* tablets: dates under the values, so four periods fit side by side */
+@media (max-width: 1180px) {
+  .rec-hi, .rec-lo { flex-wrap: wrap; column-gap: 4px; }
+  .rec-hi small, .rec-lo small { flex-basis: 100%; text-align: center; margin-top: -3px; }
+  #ov-body table.records th, #ov-body table.records td { padding: 7px 8px; }
+  .fc-days { grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 8px; }
+  .fc-hl b { font-size: 25px; }
+  .fc-hl i { font-size: 19px; }
+  .fc-dr { font-size: 15px; }
+}
+@media (max-width: 900px) {
+  .fc-dr small { display: none; }
+  .fc-dr em { margin-left: 4px; }
+}
+@media (max-width: 760px) {
+  .rec-tabs { display: flex; }
+  .rec-hi small, .rec-lo small { flex-basis: auto; text-align: right; margin-top: 0; }
+  #ov-body .fc-hours th span { font-size: 15px; }
+  #ov-body .fc-hours th, #ov-body .fc-hours td { padding: 5px 5px; font-size: 17px; }
+  .fc-hours td { min-width: 44px; }
+  table.records[data-sel="day"] [data-p]:not([data-p="day"]),
+  table.records[data-sel="month"] [data-p]:not([data-p="month"]),
+  table.records[data-sel="year"] [data-p]:not([data-p="year"]),
+  table.records[data-sel="all"] [data-p]:not([data-p="all"]) { display: none; }
+  table.records td { text-align: right; }
+  .rec-hi, .rec-lo { justify-content: flex-end; }
+  .fc-days { grid-template-columns: repeat(7, 112px); }
+  .fc-sum { gap: 10px 16px; }
 }
 
 /* footer button with nothing to do (e.g. CH with a single channel) */

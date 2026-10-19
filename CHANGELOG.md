@@ -7,6 +7,44 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [2.0.0] – in development
+
+### Added
+- Live data can come from the gateway's own MQTT messages. Gateways and consoles with
+  MQTT (GW1200, GW2000, GW3000 ...) publish their readings to a broker every 8 seconds
+  or more; with `[EcowittConsoleEmulator] source = mqtt` and an `[[MQTT]]` section
+  (broker, port, topic, user name, password, optional TLS), the skin's live service
+  subscribes to the gateway's topic and writes `live.json` from each message. The
+  readings are renamed to weewx-EcowittGateway's fields and converted to METRICWX; the
+  pass key and device details are left out. Dew point and feels-like are worked out
+  when the gateway doesn't send them. `source = both` keeps loop packets too (for
+  signal strengths and the WH40/WN20/WH68 batteries), with MQTT readings on top while
+  they are fresh. The subscriber is built in, so nothing else needs installing.
+- The installer offers **mqtt** as a live-data source (also without
+  weewx-EcowittGateway) and asks for the broker and topic; for unattended installs,
+  `--live=mqtt --mqtt-host=... --mqtt-port=... --mqtt-topic=... --mqtt-user=...
+  --mqtt-password=...`.
+- Settings shows "· MQTT" after the live file's name when live data comes from MQTT.
+- **Forecast** button and panel: a 7-day, hour-by-hour forecast for the station's
+  position from Open-Meteo (free, no key; fetched by the browser and kept for 30
+  minutes). A card for each day; for the chosen day its conditions, sunrise and
+  sunset, high and low, strongest gust, rain and highest UV index; a table of every
+  hour (temperature, feels like, humidity, gust and direction, rain and its chance,
+  UV index) with sunrise and sunset marked; and charts of the same, read like the
+  Charts panel. Uses the dashboard's own icons (with a new snow icon), theme and
+  display units. `forecast` and `forecast_url` in `skin.conf`.
+- **Records** button and panel: highest and lowest temperature, feels like, dew point,
+  humidity, barometer, and highest gust, solar radiation, UV index, rain rate and
+  wettest day (for each rain gauge), today, this month, this year and all time, each
+  with when it happened. Worked out from the daily summaries, so it takes milliseconds
+  even with years of data, and added to `ecowitt.json`. `records` in `skin.conf`.
+- The new text is in all 29 translations.
+
+### Changed
+- The station title is now the largest text in the header in every layout, centred
+  between the status chips and the clock; the clock is a little smaller and the date
+  dimmer. Long names are made smaller to fit before they are cut short.
+
 ## [1.1.1] – 2026-10-15
 
 ### Added
@@ -156,7 +194,8 @@ Released under the GNU General Public License, version 3 or later (see LICENSE).
 - weewx-EcowittGateway is optional; the skin works with any driver for an Ecowitt
   gateway or console.
 
-[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.1...v2.0.0
 [1.1.1]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/releases/tag/v1.0.0

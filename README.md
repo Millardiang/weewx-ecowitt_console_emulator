@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 1.1.1
+# Version 2.0.0
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
@@ -70,9 +70,15 @@ the choice is kept in the browser. "Add to Home screen" apps can rotate freely.
 * `ecowitt.json` – written by WeeWX every archive interval (and embedded in
   `index.html`). Highs/lows, rain totals, trends, almanac.
 * **Live data, every few seconds** – the skin's `EcowittConsoleEmulatorLive` service
-  writes each loop packet to **`live.json`**, whatever the driver. If
-  weewx-EcowittGateway is installed, the installer offers its **`ecwLoop.json`**
-  (its `[[loop_json]]` option) instead, and the skin's service is switched off.
+  writes **`live.json`**, from one of:
+  * **WeeWX loop packets**, whatever the driver (the default);
+  * **the gateway's own MQTT messages** – GW1200, GW2000, GW3000 and other
+    gateways and consoles with MQTT can publish their readings to a broker
+    themselves; the service subscribes to the gateway's topic (see
+    [Live data from the gateway's MQTT](#live-data-from-the-gateways-mqtt));
+  * **weewx-EcowittGateway's `ecwLoop.json`** (its `[[loop_json]]` option), if
+    that driver is installed; the skin's service is then switched off.
+
   Either way the browser converts the units. Live data is the only source of
   **battery and signal** levels, since those aren't archived.
 
@@ -156,18 +162,23 @@ Show VPD (yes/no) [yes]:
 **yes** shows the VPD reading (after Humidity) and the VPD chart; **no** leaves
 both out, and the readings row spreads the others across the space.
 
-Live data then comes from the skin's own `live.json`; no question is asked.
-
-**If weewx-EcowittGateway is installed** (an `[EcowittGateway]` section in
-weewx.conf), the rain question defaults to the driver's `rain_source`, and a
-second question is asked:
+Then it asks where live data comes from:
 
 ```
 Where should the tablet get live (every few seconds) data from?
   driver - the driver's ecwLoop.json (its loop_json option, already on)
-  skin   - this skin's own live.json
-Live data source (driver/skin) [driver]:
+  skin   - this skin's own live.json, from WeeWX loop packets
+  mqtt   - this skin's own live.json, from the gateway's own MQTT messages
+Live data source (driver/skin/mqtt) [driver]:
 ```
+
+(**driver** is only offered when weewx-EcowittGateway is installed; without it
+the default is **skin**.) With **mqtt** it then asks for the broker's address and
+port, the gateway's topic and, if the broker needs them, a user name and password
+– see [Live data from the gateway's MQTT](#live-data-from-the-gateways-mqtt).
+
+**If weewx-EcowittGateway is installed** (an `[EcowittGateway]` section in
+weewx.conf), the rain question defaults to the driver's `rain_source`.
 
 With **driver**, the skin reads the driver's `ecwLoop.json` and its own live
 service is switched off. If the driver's `loop_json` is off, the installer turns
@@ -176,12 +187,14 @@ server can't reach (the `data`, `tmp` or a custom folder), the installer uses
 the skin's own `live.json` instead. If you answer `both` to the rain question
 but the driver only records one gauge, the installer says so.
 
-For unattended installs, answer on the command line (`--live` only matters
-when weewx-EcowittGateway is installed):
+For unattended installs, answer on the command line (`--live=driver` only
+works when weewx-EcowittGateway is installed):
 
 ```bash
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
+weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
+    --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 ```
 
 The answers are stored in `weewx.conf` under
@@ -207,6 +220,13 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
     report = EcowittConsoleEmulatorReport
     interval = 5
     filename = live.json
+    source = loop              # loop, mqtt or both
+    [[MQTT]]                   # only with source = mqtt or both
+        host = 192.168.1.20
+        port = 1883
+        topic = ecowitt/1C6920E3A8F3
+        username = weewx
+        password = secret
 
 [Engine]
     [[Services]]
@@ -215,6 +235,59 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
 
 Then open `http://<your-weewx-host>/weewx/console/` (or wherever your
 `public_html` is served) on the tablet.
+
+### Live data from the gateway's MQTT
+
+Ecowitt gateways and consoles with MQTT (GW1200, GW2000 and GW3000 so far, with
+recent firmware) can publish their readings to an MQTT broker such as Mosquitto
+themselves, as often as every 8 seconds. The skin can take its live data from those messages:
+
+1. In the gateway's web page (or the WS View Plus app), under **MQTT**, enter the
+   broker's address, port (usually 1883), a topic (e.g. `ecowitt/<MAC>`), the
+   broker's user name and password if it has them, and how often to publish.
+   The gateway can't use TLS, so this must be a plain (unencrypted) listener.
+2. Answer **mqtt** to the installer's live-data question, or set by hand in
+   `weewx.conf`:
+
+   ```ini
+   [EcowittConsoleEmulator]
+       enable = true
+       source = mqtt
+       [[MQTT]]
+           host = 192.168.1.20       # the broker
+           port = 1883
+           topic = ecowitt/1C6920E3A8F3   # the gateway's topic; ecowitt/# takes any
+           username = weewx          # leave out if the broker has no passwords
+           password = secret
+           # tls = true, ca_certs = /path/ca.pem   for a TLS listener (WeeWX can use one
+           #                                       even though the gateway can't)
+           keepalive = 60
+   [StdReport]
+       [[EcowittConsoleEmulatorReport]]
+           [[[Extras]]]
+               live_url = live.json
+   ```
+
+3. Restart WeeWX. The log shows
+   `ecowitt_console_emulator: MQTT subscribed to ecowitt/... on 192.168.1.20:1883`,
+   and Settings on the dashboard shows *Live data: OK, … s old (live.json · MQTT)*.
+
+WeeWX itself subscribes, so the broker's password stays on the WeeWX machine and
+the tablet still just reads `live.json`; no WebSocket listener is needed. Nothing
+extra needs installing: the subscriber is built into the skin.
+
+The gateway sends the same `key=value` readings it sends to a "Customized" upload
+server (`tempf`, `baromrelin`, `rrain_piezo` ...), in US units. The skin renames
+them to the fields weewx-EcowittGateway uses and writes them in METRICWX like the
+rest of `live.json`. Its pass key and other device details are not written.
+Dew point and feels-like are worked out when the gateway doesn't send them. Each
+message replaces the previous one, so a sensor that goes quiet drops out.
+
+Two things only loop packets have: **signal strengths** (MQTT carries none), and
+the **WH40, WN20 and WH68** batteries, which the gateway sends in volts where the
+dashboard expects a level. To keep those, use `source = both`: loop packets as
+before, with the MQTT readings on top while they are fresh (`mqtt_stale`, default
+120 seconds), so the faster MQTT values win and the loop fills in the rest.
 
 ### Full screen
 
@@ -266,6 +339,8 @@ Share → "Add to Home Screen".
 | Toolbar button | Action |
 |---|---|
 | Charts | Full-screen charts with Day, Week, Month and Year tabs. The Year tab has a list: the last 12 months, or any calendar year in the skin's database (1 January to 31 December). Charts: temperature, indoor temperature, humidity, VPD (kPa, unless turned off), wind, wind direction (day), rain, barometer, solar radiation, UV. Rain is one chart with a separate column for the tipping gauge (blue) and the piezo sensor (violet) in each hour, day or month and the difference in the tooltip. The legend gives each gauge's total for today, this week, this month or this year (by tab): the same figures as the rain table. The bars cover the chart's whole span (27 hours, 7 days, 31 days, 12 months). Every chart has a tooltip: hover with a mouse, or tap/drag on a touch screen. Drawn in the current theme and display units |
+| Forecast | A 7-day forecast, hour by hour, for the station's position, from [Open-Meteo](https://open-meteo.com): a card for each day (conditions, high and low, rain and its chance), then for the chosen day its sunrise and sunset, high and low, strongest gust, rain and highest UV index, a table of every hour (temperature, feels like, humidity, gust and direction, rain and its chance, UV index, with sunrise and sunset marked between the hours), and charts of the same, read like the Charts panel. Drawn with the dashboard's own icons, in the current theme and display units. See [Forecast](#forecast) |
+| Records | The highest and lowest readings **today**, **this month**, **this year** and **since the skin's database began**, each with when it happened: temperature, feels like, dew point, humidity, gust, barometer, solar radiation, UV index, and for each rain gauge the highest rain rate and the wettest day. All four periods side by side; one at a time (with tabs) on a phone. Updated with every archive record |
 | Theme | Auto (the default: Light from sunrise to sunset, Black from sunset to sunrise, switching by itself at the station's sunrise and sunset) → Navy (console) → Black (OLED / night) → Light. A short message shows which one is chosen |
 | CH | Switches the second pair of rings between the temperature/humidity channels that are reporting: Indoor, then each WN31 (CH1–CH8). Greyed out when only one channel reports |
 | Battery | Battery and signal of every sensor that reports them |
@@ -285,6 +360,22 @@ All times (clock, date, sunrise/sunset, moonrise/moonset, chart axes) are shown 
 the **station's** time zone, whatever the time zone of the tablet or phone viewing
 the page.
 
+### Forecast
+
+The forecast comes from [Open-Meteo](https://open-meteo.com), a free weather
+service that needs no account or key, for the station's latitude and longitude
+(`[Station]` in weewx.conf). The tablet asks Open-Meteo itself, so it needs
+internet access; WeeWX isn't involved. The forecast is kept for 30 minutes, then
+fetched again the next time the panel opens. Open-Meteo's free service is for
+non-commercial use, and its data is licensed CC BY 4.0, so the panel names it as
+the source. For commercial use, take an Open-Meteo plan and set
+`forecast_url = https://customer-api.open-meteo.com/v1/forecast?apikey=...`.
+
+Rain in each hour is the amount expected in the hour up to that time (as Open-Meteo
+gives it), with the chance of rain under it. Times are in the station's time zone.
+The Forecast button is hidden if weewx.conf has no station position, or with
+`forecast = false`.
+
 ## Configuration (`skins/EcowittConsoleEmulator/skin.conf`, `[Extras]`)
 
 * `title` – the name at the top of the dashboard; empty = the station name (`location` in `[Station]` of weewx.conf)
@@ -301,6 +392,9 @@ the page.
   has an "Open in Windy" link. `windy_mode = link` opens windy.com instead.
   `windy_embed_url` / `windy_url` can be changed (`{lat}`, `{lon}`, `{zoom}`,
   `{wind}`, `{temp}` are filled in). The tablet needs internet access for this.
+* `forecast` – `true` (default) or `false`: the **Forecast** button (see [Forecast](#forecast));
+  `forecast_url` – Open-Meteo's address, to change only for a paid Open-Meteo plan
+* `records` – `true` (default) or `false`: the **Records** button
 * `rain_sensors` – `tipping`, `piezo`, `both` or `auto` (set by the installer); `baro_mode` – `REL` or `ABS`
 * `show_vpd` – `true` or `false`: the VPD reading and chart (set by the installer)
 * `[[Links]]` – chips at the top left, e.g. `Windy = https://www.windy.com/station/…`
@@ -442,6 +536,10 @@ again.
 * **Wi-Fi icon yellow** – live data isn't arriving. With the skin's own
   `live.json`, check that `[EcowittConsoleEmulator] enable = true` and look for
   `ecowitt_console_emulator: ... writing live data to ...` in the log. With
+  `source = mqtt`, look for `MQTT subscribed to ...`; an `MQTT ...` error says why
+  it can't connect (wrong address, `not authorised`, ...). To see what the
+  gateway sends, run `mosquitto_sub -h <broker> -t 'ecowitt/#' -v`: nothing there
+  means the gateway's MQTT settings need checking, not WeeWX. With
   weewx-EcowittGateway's `ecwLoop.json`, check that the file exists and that
   `live_url` in weewx.conf points to it (relative to the dashboard page, e.g.
   `../ecwLoop.json`).

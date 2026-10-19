@@ -374,6 +374,11 @@
       else if (kind === 'cloudy') g = cloud(20, 2, 0.9, 'url(#dcloudG)') + cloud(2, 16, 1.1);
       else if (kind === 'rain') g = cloud(6, 0, 1.15, 'url(#dcloudG)') + '<g stroke="#5fb7ff" stroke-width="3" stroke-linecap="round"><line x1="26" y1="54" x2="22" y2="64"/><line x1="40" y1="54" x2="36" y2="64"/><line x1="54" y1="54" x2="50" y2="64"/></g>';
       else if (kind === 'storm') g = cloud(6, 0, 1.15, 'url(#dcloudG)') + '<path d="M42 44 L32 58 H40 L35 68 L52 52 H43 L48 44Z" fill="#ffb21a" stroke="#ff7a00"/>';
+      else if (kind === 'snow') g = cloud(6, 0, 1.15, 'url(#dcloudG)') + '<g stroke="#8fc8ff" stroke-width="2.4" stroke-linecap="round">' +
+        [[24, 58], [40, 63], [56, 58]].map(function (p) {
+          return [0, 60, 120].map(function (a) { var r = 5, c = Math.cos(a * Math.PI / 180) * r, s = Math.sin(a * Math.PI / 180) * r;
+            return '<line x1="' + (p[0] - c).toFixed(1) + '" y1="' + (p[1] - s).toFixed(1) + '" x2="' + (p[0] + c).toFixed(1) + '" y2="' + (p[1] + s).toFixed(1) + '"/>'; }).join('');
+        }).join('') + '</g>';
       else return '';
       return svg(w, w * 70 / 84, '<g transform="scale(' + (w / 84) + ')">' + defs + g + '</g>');
     },
@@ -383,6 +388,10 @@
     },
     tool: {
       graphs: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 20h16v2H4zM5 10h3v8H5zM10.5 6h3v12h-3zM16 13h3v5h-3z"/></svg>',
+      forecast: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.4"/>' +
+        '<path d="M9 1.5v1.3M3.5 8H2.2M4.9 3.9l.9.9M13.1 3.9l-.9.9"/></g><path fill="currentColor" d="M8 21a4 4 0 0 1-.6-8 5.6 5.6 0 0 1 10.6-1.6A4.8 4.8 0 1 1 18 21z"/></svg>',
+      records: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M7 20V5M3 9l4-4 4 4M17 4v15M13 15l4 4 4-4"/></g></svg>',
       theme: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>',
       channel: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="15.6" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor" font-family="sans-serif">CH</text></svg>',
       sensors: '<svg viewBox="0 0 24 24"><rect x="9" y="1.8" width="6" height="2.6" rx="1" fill="currentColor"/><rect x="6" y="4" width="12" height="18.2" rx="2.4" fill="none" stroke="currentColor" stroke-width="2"/><rect x="8.6" y="12" width="6.8" height="7.6" rx="1" fill="currentColor"/><rect x="8.6" y="7.6" width="6.8" height="3.2" rx="1" fill="currentColor" opacity=".45"/></svg>',
@@ -1005,7 +1014,8 @@
       esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', square: 'Square', phone: 'Phone' }[S.layout] || 'Auto')) +
       ' · ' + (S.fitSize ? S.fitSize[0] + ' × ' + S.fitSize[1] + ' px' : '') + '<br>' +
       esc(_t('Times shown in station time')) + (stationZone() ? ' (' + esc(stationZone()) + ')' : '') + '<br>' +
-      esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) + ')<br>' +
+      esc(_t('Live data')) + ': ' + esc(liveFresh() ? _t('OK, {0} s old', Math.round(now() - S.live.written)) : (S.live ? _t('stale') : _t('not available'))) + ' (' + esc(S.cfg.live_url) +
+        (S.cfg.live_url === 'live.json' && S.cfg.live_source && S.cfg.live_source !== 'loop' ? ' · MQTT' : '') + ')<br>' +
       'EcowittConsoleEmulator ' + esc(a.version) + ' · WeeWX ' + esc(a.weewx) + '</div>';
     openOverlay('Settings', html);
     $('unit-sel').onchange = function () { setUnitSystem(this.value); };
@@ -1157,7 +1167,7 @@
     // rain legend: each gauge's total for today / this week / this month / this year,
     // the same calendar periods (and figures) as the rain table, from the archive
     // (the table's own figure — the gateway's counter when live — else the archive sum)
-    var tot = def.totals, blocks = kind === 'bar' ? rainBlocks() : null, totalOf = function (s, i) {
+    var tot = def.totals, blocks = kind === 'bar' && !def.forecast ? rainBlocks() : null, totalOf = function (s, i) {
       var key = def.series[i].key, v = blocks ? blocks[key === 'rain_p' ? 'piezo' : 'trad'][data.period] : null;
       if (!isNum(v) && tot && tot.v) v = tot.v[key];
       return isNum(v) ? conv(v) : null;
@@ -1290,6 +1300,311 @@
   }
   function isYearPeriod(p) { return p === 'year' || p === 'calyear'; }
 
+  // ---------------------------------------------------------------- small icons (forecast, records)
+  // Drawn like the dashboard's own: the same drop blue, sun gradient, wind colour and lines.
+  function mini(kind, s) {
+    s = s || 26;
+    var drop = function (fill, stroke, dx) {
+      return '<path transform="translate(' + (dx || 0) + ',0)" d="M14 3 C10 10 6 13.5 6 18 a8 8 0 0 0 16 0 C22 13.5 18 10 14 3Z" fill="' + fill + '"' +
+        (stroke ? ' stroke="' + stroke + '" stroke-width="2"' : '') + '/>';
+    };
+    var thermo = function (col, dx) {
+      return '<g transform="translate(' + (dx || 0) + ',0)"><path d="M11 5.5 a3 3 0 0 1 6 0 v10 a6 6 0 1 1 -6 0Z" fill="none" stroke="var(--fg-dim)" stroke-width="2"/>' +
+        '<circle cx="14" cy="20.2" r="3.4" fill="' + col + '"/><rect x="12.7" y="9" width="2.6" height="10" rx="1.3" fill="' + col + '"/></g>';
+    };
+    var sunDefs = '<defs>' + I.sunDefs + '</defs>';
+    var g = '';
+    switch (kind) {
+      case 'temp': g = thermo('#ff7a3d'); break;
+      case 'feels': g = thermo('#ffa23a', -4) + '<g fill="none" stroke="#ffa23a" stroke-width="1.8" stroke-linecap="round">' +
+        '<path d="M19.5 7 q2 2.2 0 4.4 q-2 2.2 0 4.4"/><path d="M24 7 q2 2.2 0 4.4 q-2 2.2 0 4.4"/></g>'; break;
+      case 'dew': g = drop('none', '#5fb7ff') + '<path d="M7.6 17 h12.8 a6.4 6.4 0 0 1 -12.8 0Z" fill="#5fb7ff"/>'; break;
+      case 'hum': g = drop('#5fb7ff') + '<text x="14" y="22.5" text-anchor="middle" font-size="10" font-weight="700" fill="#0a0e3a" font-family="sans-serif">%</text>'; break;
+      case 'gust': g = '<g fill="none" stroke="var(--wind)" stroke-width="2.2" stroke-linecap="round">' +
+        '<path d="M3 10 H17 a3.5 3.5 0 1 0 -3.5 -3.5"/><path d="M3 15 H21 a3.5 3.5 0 1 1 -3.5 3.5"/><path d="M3 20 H10"/></g>'; break;
+      case 'baro': g = '<circle cx="14" cy="14" r="10.5" fill="none" stroke="var(--fg-dim)" stroke-width="2"/>' +
+        '<g stroke="var(--fg-dim)" stroke-width="1.6" stroke-linecap="round"><line x1="14" y1="5.5" x2="14" y2="7.5"/><line x1="5.5" y1="14" x2="7.5" y2="14"/><line x1="20.5" y1="14" x2="22.5" y2="14"/></g>' +
+        '<line x1="14" y1="14" x2="19" y2="8.6" stroke="var(--fg)" stroke-width="2.2" stroke-linecap="round"/><circle cx="14" cy="14" r="2" fill="var(--fg)"/>'; break;
+      case 'solar': g = sunDefs + '<g transform="translate(14,14)">' + I.sun(6.4) + '</g>'; break;
+      case 'uv': g = sunDefs + '<circle cx="14" cy="14" r="11" fill="url(#sunG)"/>' +
+        '<text x="14" y="18" text-anchor="middle" font-size="10" font-weight="700" fill="#6a3a00" font-family="sans-serif">UV</text>'; break;
+      case 'rate': g = drop('#5fb7ff', null, 3) + '<g stroke="#5fb7ff" stroke-width="1.8" stroke-linecap="round" opacity=".75">' +
+        '<line x1="1.5" y1="12" x2="6" y2="12"/><line x1="0.5" y1="17" x2="5" y2="17"/><line x1="1.5" y1="22" x2="6" y2="22"/></g>'; break;
+      case 'rain': g = '<defs><linearGradient id="miniCloud" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#a3aed8"/><stop offset="1" stop-color="#5a6491"/></linearGradient></defs>' +
+        '<path d="M7.5 16 a5 5 0 0 1 1 -9.8 a7 7 0 0 1 13 -1 a5.2 5.2 0 0 1 1.5 10.8Z" fill="url(#miniCloud)"/>' +
+        '<g stroke="#5fb7ff" stroke-width="2.2" stroke-linecap="round"><line x1="10" y1="19" x2="8.5" y2="23.5"/><line x1="15" y1="19" x2="13.5" y2="23.5"/><line x1="20" y1="19" x2="18.5" y2="23.5"/></g>'; break;
+      case 'sunrise': case 'sunset':
+        g = sunDefs + '<clipPath id="miniHz"><rect x="0" y="0" width="28" height="17"/></clipPath>' +
+          '<g clip-path="url(#miniHz)"><g transform="translate(14,17)">' + I.sun(5.6) + '</g></g>' +
+          '<line x1="3" y1="17.5" x2="25" y2="17.5" stroke="var(--fg-dim)" stroke-width="2" stroke-linecap="round"/>' +
+          '<path d="' + (kind === 'sunrise' ? 'M14 27 V21 M11 23.5 L14 20.5 L17 23.5' : 'M14 20.5 V26.5 M11 24 L14 27 L17 24') +
+          '" fill="none" stroke="#ffb21a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'; break;
+      default: return '';
+    }
+    return '<svg class="mini" viewBox="0 0 28 28" width="' + s + '" height="' + s + '">' + g + '</svg>';
+  }
+  // Text colour for a temperature: the hue of the outdoor ring at that temperature
+  function tempColor(c) {
+    if (!isNum(c)) return 'var(--fg)';
+    var t = tempScale(c), l = S.opts && themeNow() === 'light' ? .40 : Math.max(.6, t.ll);
+    return 'hsl(' + t.h.toFixed(0) + ',90%,' + (l * 100).toFixed(0) + '%)';
+  }
+  // UV index colours (WHO): low, moderate, high, very high, extreme
+  function uvColor(u) {
+    return !isNum(u) ? 'var(--fg-faint)' : u < 3 ? 'var(--good)' : u < 6 ? '#f2c12e' : u < 8 ? '#ff8a2a' : u < 11 ? 'var(--bad)' : '#b06bff';
+  }
+
+  // ---------------------------------------------------------------- forecast (Open-Meteo)
+  // Seven days, hour by hour, for the station's position ([Station] latitude and longitude
+  // in weewx.conf) from Open-Meteo's free forecast service (no key needed; data CC BY 4.0).
+  // Asked for in metric units and converted for display like everything else. Kept for
+  // 30 minutes: Open-Meteo's models are updated about once an hour.
+  var FC_HOURLY = 'temperature_2m,apparent_temperature,relative_humidity_2m,wind_gusts_10m,wind_direction_10m,' +
+    'precipitation,precipitation_probability,uv_index,weather_code,is_day';
+  var FC_DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,' +
+    'precipitation_probability_max,uv_index_max,wind_gusts_10m_max';
+  var FC_KEEP = 1800000;
+  function forecastOn() { return !!(S.cfg && S.cfg.forecast !== false && S.arch && isNum(S.arch.lat) && isNum(S.arch.lon)); }
+  function forecastUrl() {
+    var base = S.cfg.forecast_url || 'https://api.open-meteo.com/v1/forecast';
+    return base + (base.indexOf('?') < 0 ? '?' : '&') + 'latitude=' + S.arch.lat.toFixed(4) + '&longitude=' + S.arch.lon.toFixed(4) +
+      '&hourly=' + FC_HOURLY + '&daily=' + FC_DAILY + '&timezone=' + encodeURIComponent(stationZone() || 'auto') +
+      '&forecast_days=7&wind_speed_unit=ms&temperature_unit=celsius&precipitation_unit=mm&timeformat=unixtime';
+  }
+  // WMO weather code -> the dashboard's forecast icon, and words for it
+  function wmoKind(c) {
+    if (!isNum(c)) return '';
+    if (c <= 1) return 'sunny';
+    if (c === 2) return 'partly';
+    if (c === 3 || c === 45 || c === 48) return 'cloudy';
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+    if (c >= 95) return 'storm';
+    return 'rain';
+  }
+  function wmoText(c) {
+    if (!isNum(c)) return '';
+    return c === 0 ? 'Clear sky' : c === 1 ? 'Mainly clear' : c === 2 ? 'Partly cloudy' : c === 3 ? 'Overcast'
+      : c === 45 || c === 48 ? 'Fog' : c >= 51 && c <= 55 ? 'Drizzle' : c === 56 || c === 57 || c === 66 || c === 67 ? 'Freezing rain'
+      : c >= 61 && c <= 65 ? 'Rain' : c >= 71 && c <= 77 ? 'Snow' : c >= 80 && c <= 82 ? 'Rain showers'
+      : c === 85 || c === 86 ? 'Snow showers' : c >= 95 ? 'Thunderstorm' : '';
+  }
+  function parseForecast(j) {
+    var h = j.hourly, d = j.daily, days = [];
+    var at = function (a, i) { return a && isNum(a[i]) ? a[i] : null; };
+    for (var i = 0; i < d.time.length; i++) {
+      days.push({ t: d.time[i], end: i + 1 < d.time.length ? d.time[i + 1] : d.time[i] + 86400,
+        code: at(d.weather_code, i), hi: at(d.temperature_2m_max, i), lo: at(d.temperature_2m_min, i),
+        rise: at(d.sunrise, i), set: at(d.sunset, i), rain: at(d.precipitation_sum, i),
+        pop: at(d.precipitation_probability_max, i), uv: at(d.uv_index_max, i), gust: at(d.wind_gusts_10m_max, i), hours: [] });
+    }
+    for (var k = 0; k < h.time.length; k++) {
+      var t = h.time[k];
+      for (var n = 0; n < days.length; n++) {
+        if (t >= days[n].t && t < days[n].end) {
+          days[n].hours.push({ t: t, temp: at(h.temperature_2m, k), feels: at(h.apparent_temperature, k),
+            hum: at(h.relative_humidity_2m, k), gust: at(h.wind_gusts_10m, k), dir: at(h.wind_direction_10m, k),
+            rain: at(h.precipitation, k), pop: at(h.precipitation_probability, k), uv: at(h.uv_index, k),
+            code: at(h.weather_code, k), day: h.is_day ? h.is_day[k] === 1 : true });
+          break;
+        }
+      }
+    }
+    return { days: days, at: Date.now() };
+  }
+  function loadForecast(force) {
+    var c = S.fc;
+    if (!force && c && Date.now() - c.at < FC_KEEP) return Promise.resolve(c);
+    return fetch(forecastUrl(), { cache: 'no-store' }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok || !j || j.error || !j.hourly || !j.daily) throw new Error((j && j.reason) || ('HTTP ' + r.status));
+        S.fc = parseForecast(j);
+        return S.fc;
+      });
+    });
+  }
+  function showForecast() {
+    if (!forecastOn()) return;
+    openOverlay('Forecast', '');
+    $('ov-body').innerHTML = '<div class="chart-empty">' + esc(_t('Loading…')) + '</div>';
+    loadForecast().then(renderForecast).catch(function (e) {
+      if (S.panel !== 'Forecast') return;
+      if (window.console) console.warn('EcowittConsoleEmulator: forecast: ' + (e && e.message));
+      $('ov-body').innerHTML = '<div class="chart-empty">' + esc(_t('The forecast could not be loaded.')) +
+        '<br><button class="fc-retry">' + esc(_t('Try again')) + '</button></div>';
+      $('ov-body').querySelector('.fc-retry').onclick = function () { S.fc = null; showForecast(); };
+    });
+  }
+  function fcT(v) { return isNum(v) ? Math.round(cv.temp(v)) + '°' : '--'; }
+  function fcRain(v) { return isNum(v) ? cv.rain(v).toFixed(dec.rain()) : '--'; }
+  function fcHours(day, i) {
+    // today: from the current hour on
+    var from = i === 0 ? Math.floor(now() / 3600) * 3600 : -Infinity;
+    return day.hours.filter(function (h) { return h.t >= from; });
+  }
+  function renderForecast() {
+    if (S.panel !== 'Forecast' || !S.fc) return;
+    var f = S.fc, days = f.days.filter(function (d) { return d.end > now(); });
+    if (!days.length) { S.fc = null; return showForecast(); }
+    var di = clamp(S.fcDay || 0, 0, days.length - 1), day = days[di], hours = fcHours(day, di);
+    var noon = function (d) { return W(d.t + 43200); };
+
+    // the seven days, as cards (tap one for its hours)
+    var cards = days.map(function (d, i) {
+      var name = i === 0 && dayIndex(now()) === dayIndex(d.t + 43200) ? _t('Today') : dtf({ weekday: 'short' }).format(noon(d));
+      return '<button class="fc-day' + (i === di ? ' on' : '') + '" data-i="' + i + '" title="' + esc(_t(wmoText(d.code))) + '">' +
+        '<span class="fc-dn">' + esc(name) + '</span><span class="fc-dd">' + esc(dtf({ day: 'numeric', month: 'short' }).format(noon(d))) + '</span>' +
+        '<span class="fc-ic">' + I.forecast(wmoKind(d.code), 66) + '</span>' +
+        '<span class="fc-hl"><b style="color:' + tempColor(d.hi) + '">' + fcT(d.hi) + '</b><i style="color:' + tempColor(d.lo) + '">' + fcT(d.lo) + '</i></span>' +
+        '<span class="fc-dr">' + mini('rain', 20) + fcRain(d.rain) + '<small>' + esc(lbl.rain()) + '</small>' +
+        (isNum(d.pop) ? '<em>' + Math.round(d.pop) + '%</em>' : '') + '</span></button>';
+    }).join('');
+
+    // the chosen day in a line: conditions, sunrise and sunset, highest gust and UV, rain
+    var chip = function (icon, k, v) { return '<span class="fc-chip">' + icon + '<span><small>' + esc(_t(k)) + '</small><b>' + v + '</b></span></span>'; };
+    var sum = '<div class="fc-sum"><span class="fc-what">' + I.forecast(wmoKind(day.code), 54) + '<b>' + esc(_t(wmoText(day.code))) + '</b></span>' +
+      chip(mini('sunrise', 30), 'Sunrise', esc(hhmm(day.rise))) + chip(mini('sunset', 30), 'Sunset', esc(hhmm(day.set))) +
+      chip(mini('temp', 30), 'High / Low', '<span style="color:' + tempColor(day.hi) + '">' + fcT(day.hi) + '</span> / <span style="color:' + tempColor(day.lo) + '">' + fcT(day.lo) + '</span>') +
+      chip(mini('gust', 30), 'Gust', isNum(day.gust) ? cv.wind(day.gust).toFixed(0) + ' <small>' + esc(lbl.wind()) + '</small>' : '--') +
+      chip(mini('rain', 30), 'Rain', fcRain(day.rain) + ' <small>' + esc(lbl.rain()) + (isNum(day.pop) ? ' · ' + Math.round(day.pop) + '%' : '') + '</small>') +
+      chip(mini('uv', 30), 'UV index', '<span class="uv" style="background:' + uvColor(day.uv) + '">' + (isNum(day.uv) ? Math.round(day.uv) : '--') + '</span>') +
+      '</div>';
+
+    // hour by hour: one column per hour, with sunrise and sunset placed between the hours
+    var cols = hours.map(function (h) { return { h: h }; });
+    [['sunrise', day.rise], ['sunset', day.set]].forEach(function (s) {
+      if (!isNum(s[1]) || !hours.length || s[1] < hours[0].t || s[1] > hours[hours.length - 1].t) return;
+      var at = 0; while (at < cols.length && (cols[at].h ? cols[at].h.t : cols[at].t) <= s[1]) at++;
+      cols.splice(at, 0, { sun: s[0], t: s[1] });
+    });
+    var row = function (icon, label, unit, cell) {
+      return '<tr><th>' + icon + '<span>' + esc(_t(label)) + (unit ? '<small>' + esc(unit) + '</small>' : '') + '</span></th>' +
+        cols.map(function (c) { return c.sun ? '<td class="fc-sun"></td>' : '<td>' + cell(c.h) + '</td>'; }).join('') + '</tr>';
+    };
+    var arrow = function (deg) {
+      // where the wind blows to, as the wind dial shows it
+      return isNum(deg) ? '<svg class="fc-arr" viewBox="0 0 12 12" width="15" height="15"><g transform="rotate(' + ((deg + 180) % 360).toFixed(0) +
+        ' 6 6)"><path d="M6 1 L9.5 9 L6 7.2 L2.5 9Z" fill="var(--wind)"/></g></svg>' : '';
+    };
+    var grid = hours.length ? '<div class="fc-hours"><table>' +
+      '<tr class="fc-time"><th></th>' + cols.map(function (c) {
+        return c.sun ? '<td class="fc-sun" title="' + esc(_t(c.sun === 'sunrise' ? 'Sunrise' : 'Sunset')) + '">' + mini(c.sun, 24) + '</td>'
+          : '<td>' + esc(hhmm(c.h.t)) + '</td>';
+      }).join('') + '</tr>' +
+      '<tr class="fc-icons"><th></th>' + cols.map(function (c) {
+        return c.sun ? '<td class="fc-sun"><b>' + esc(hhmm(c.t)) + '</b></td>'
+          : '<td title="' + esc(_t(wmoText(c.h.code))) + '">' + I.forecast(wmoKind(c.h.code), 40, !c.h.day) + '</td>';
+      }).join('') + '</tr>' +
+      row(mini('temp'), 'Temperature', lbl.temp(), function (h) { return '<b style="color:' + tempColor(h.temp) + '">' + fcT(h.temp) + '</b>'; }) +
+      row(mini('feels'), 'Feels Like', lbl.temp(), function (h) { return '<span style="color:' + tempColor(h.feels) + '">' + fcT(h.feels) + '</span>'; }) +
+      row(mini('hum'), 'Humidity', '%', function (h) { return isNum(h.hum) ? Math.round(h.hum) : '--'; }) +
+      row(mini('gust'), 'Gust', lbl.wind(), function (h) { return (isNum(h.gust) ? Math.round(cv.wind(h.gust)) : '--') + arrow(h.dir); }) +
+      row(mini('rain'), 'Rain', lbl.rain(), function (h) {
+        var wet = isNum(h.rain) && h.rain > 0;
+        return '<span class="' + (wet ? 'wet' : 'dry') + '">' + (wet ? fcRain(h.rain) : '–') + '</span>' +
+          (isNum(h.pop) && h.pop > 0 ? '<small class="pop">' + Math.round(h.pop) + '%</small>' : '');
+      }) +
+      row(mini('uv'), 'UV index', '', function (h) {
+        return isNum(h.uv) && h.uv >= 0.5 ? '<span class="uv" style="background:' + uvColor(h.uv) + '">' + Math.round(h.uv) + '</span>' : '<span class="dry">0</span>';
+      }) +
+      '</table></div>' : '';
+
+    // the same hours as charts, drawn and read like the Charts panel
+    chartSize();
+    var data = { period: 'day', start: hours.length ? hours[0].t - 3600 : day.t, stop: hours.length ? hours[hours.length - 1].t : day.end, series: {} };
+    var put = function (key, pick, bar) {
+      data.series[key] = { t: hours.map(function (h) { return h.t; }), t0: hours.map(function (h) { return bar ? h.t - 3600 : h.t; }),
+        v: hours.map(function (h) { var v = h[pick]; return isNum(v) ? v : null; }) };
+    };
+    put('t', 'temp'); put('fl', 'feels'); put('r', 'rain', true); put('g', 'gust'); put('h', 'hum'); put('u', 'uv');
+    var total = hours.reduce(function (a, h) { return a + (isNum(h.rain) ? h.rain : 0); }, 0);
+    var defs = [
+      { id: 'fc_temp', title: 'Temperature', kind: 'line', group: 'temp', series: [{ key: 't', label: 'Temperature' }, { key: 'fl', label: 'Feels Like' }] },
+      { id: 'fc_rain', title: 'Rain', kind: 'bar', group: 'rain', forecast: true, series: [{ key: 'r', label: 'Rain' }], totals: { label: 'Total', v: { r: total } } },
+      { id: 'fc_gust', title: 'Gust', kind: 'line', group: 'speed', series: [{ key: 'g', label: 'Gust' }] },
+      { id: 'fc_hum', title: 'Humidity', kind: 'line', group: 'hum', series: [{ key: 'h', label: 'Humidity' }] },
+      { id: 'fc_uv', title: 'UV index', kind: 'line', group: 'uv', series: [{ key: 'u', label: 'UV index' }] }
+    ];
+    // rain and UV only when there is some (a dry day, or the hours after dark)
+    var some = function (k, min) { return hours.some(function (h) { return isNum(h[k]) && h[k] >= min; }); };
+    defs = defs.filter(function (def) { return def.id === 'fc_rain' ? some('rain', 0.05) : def.id === 'fc_uv' ? some('uv', 0.5) : true; });
+    var built = hours.length > 1 ? defs.map(function (def) { return drawChart(def, data); }).filter(Boolean) : [];
+
+    var src = '<div class="fc-src">' + esc(_t('Weather data by')) + ' <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0) · ' +
+      esc(_t('Updated {0}', hhmm(f.at / 1000))) + ' · ' + S.arch.lat.toFixed(2) + ', ' + S.arch.lon.toFixed(2) + '</div>';
+    $('ov-body').innerHTML = '<div class="fc"><div class="fc-days">' + cards + '</div>' + sum + grid +
+      (built.length ? '<div class="charts fc-charts">' + built.map(function (c) { return c.html; }).join('') + '</div>' : '') + src + '</div>';
+    built.forEach(function (c) { attachReadout($('ov-body').querySelector('.chart[data-id="' + c.def.id + '"]'), c); });
+    $('ov-body').querySelector('.fc-days').onclick = function (ev) {
+      var b = ev.target.closest('.fc-day'); if (!b) return;
+      S.fcDay = +b.getAttribute('data-i'); renderForecast();
+    };
+    // keep the chosen day's card in view on narrow screens
+    var on = $('ov-body').querySelector('.fc-day.on');
+    if (on && on.scrollIntoView && di > 2) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* old browser */ }
+  }
+
+  // ---------------------------------------------------------------- records
+  // Highest and lowest values today, this month, this year and since records began,
+  // from the skin's database (ecowitt.json, so they follow every archive record).
+  var REC_PERIODS = [['day', 'Today'], ['month', 'This month'], ['year', 'This year'], ['all', 'All time']];
+  var REC_ICON = { outTemp: 'temp', feelslike: 'feels', dewpoint: 'dew', outHumidity: 'hum', windGust: 'gust',
+    barometer: 'baro', radiation: 'solar', UV: 'uv' };
+  function recordsOn() { var r = S.arch && S.arch.records; return !!(S.cfg && S.cfg.records !== false && r && r.rows && r.rows.length); }
+  function recConv(g) { return { temp: cv.temp, speed: cv.wind, press: cv.press, rain: cv.rain, rainrate: cv.rain }[g] || function (v) { return v; }; }
+  function recUnit(g) {
+    return { temp: lbl.temp(), speed: lbl.wind(), press: lbl.press(), rain: lbl.rain(), rainrate: lbl.rainRate(), hum: '%', rad: 'W/m²' }[g] || '';
+  }
+  function recDec(g) { return { temp: 1, speed: 1, press: dec.press(), rain: dec.rain(), rainrate: dec.rain(), hum: 0, rad: 0, uv: 1 }[g]; }
+  function recWhen(p, t, dayOnly) {
+    if (!isNum(t)) return '';
+    var d = W(t);
+    if (p === 'day') return dayOnly ? '' : wallHM(d);
+    var date = dtf(p === 'all' ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }).format(d);
+    return dayOnly ? date : date + ' ' + wallHM(d);
+  }
+  function showRecords() {
+    if (!recordsOn()) return;
+    openOverlay('Records', '');
+    renderRecords();
+  }
+  function renderRecords() {
+    if (S.panel !== 'Records') return;
+    if (!recordsOn()) { $('ov-body').innerHTML = '<div class="chart-empty">' + esc(_t('No records yet.')) + '</div>'; return; }
+    var r = S.arch.records, sel = S.recPeriod || 'day';
+    var cell = function (row, p, which) {
+      var x = row[p] && row[p][which];
+      if (!x || !isNum(x[0])) return '';
+      var nd = recDec(row.group); if (!isNum(nd)) nd = 1;
+      var v = recConv(row.group)(x[0]);
+      var col = row.group === 'temp' ? ' style="color:' + tempColor(x[0]) + '"' : '';
+      var shown = row.group === 'uv' ? '<span class="uv" style="background:' + uvColor(x[0]) + '">' + v.toFixed(nd) + '</span>' : v.toFixed(nd);
+      return '<div class="rec-' + which + '"><span class="arr">' + (which === 'hi' ? '↑' : '↓') + '</span><b' + col + '>' + shown + '</b>' +
+        '<small>' + esc(recWhen(p, x[1], row.group === 'rain')) + '</small></div>';
+    };
+    var rows = r.rows.map(function (row) {
+      var icon = mini(REC_ICON[row.id] || (row.group === 'rain' ? 'rain' : row.group === 'rainrate' ? 'rate' : 'temp'), 30);
+      var u = recUnit(row.group);
+      return '<tr><th>' + icon + '<span>' + esc(_t(row.label)) + (row.gauge ? ' <em>' + esc(_t(row.gauge)) + '</em>' : '') +
+        (u ? '<small>' + esc(u) + '</small>' : '') + '</span></th>' +
+        REC_PERIODS.map(function (p) { return '<td data-p="' + p[0] + '">' + cell(row, p[0], 'hi') + cell(row, p[0], 'lo') + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    $('ov-body').innerHTML = '<div class="rec">' +
+      '<div class="rec-tabs">' + REC_PERIODS.map(function (p) { return '<button data-p="' + p[0] + '"' + (p[0] === sel ? ' class="on"' : '') + '>' + esc(_t(p[1])) + '</button>'; }).join('') + '</div>' +
+      '<table class="records" data-sel="' + sel + '"><tr><th></th>' + REC_PERIODS.map(function (p) { return '<th data-p="' + p[0] + '">' + esc(_t(p[1])) + '</th>'; }).join('') + '</tr>' +
+      rows + '</table>' +
+      '<div class="meta">' + esc(_t('Records since {0}', dtf({ day: 'numeric', month: 'long', year: 'numeric' }).format(W(r.since)))) + ' · ' +
+      esc(_t('From the archive, updated every {0} min', Math.round(S.arch.interval / 60))) + '</div></div>';
+    $('ov-body').querySelector('.rec-tabs').onclick = function (ev) {
+      var b = ev.target.closest('button'); if (!b) return;
+      S.recPeriod = b.getAttribute('data-p'); lsSet('recPeriod', S.recPeriod); renderRecords();
+    };
+  }
+  // Toolbar buttons for panels that may have nothing to show (no position, no records yet)
+  function toolbarState() {
+    var set = function (act, on) { var b = document.querySelector('#toolbar button[data-act="' + act + '"]'); if (b) b.hidden = !on; };
+    set('forecast', forecastOn()); set('records', recordsOn());
+  }
+
   // Same behaviour as weewx-divumwx: store the choice under 'dashboardUnitSystem'
   // and announce it with a 'unitsystemchange' event.
   function setUnitSystem(key) {
@@ -1342,6 +1657,8 @@
       b.innerHTML = I.tool[act] || '';
       b.onclick = function () {
         if (act === 'graphs') showCharts();
+        else if (act === 'forecast') showForecast();
+        else if (act === 'records') showRecords();
         else if (act === 'theme') { var th = ['auto', 'navy', 'black', 'light']; S.opts.theme = th[(th.indexOf(S.opts.theme) + 1) % th.length]; lsSet('opts', S.opts); applyOpts(); renderAll();
           toast(_t('Theme') + ': ' + _t({ auto: 'Auto', navy: 'Navy', black: 'Black', light: 'Light' }[S.opts.theme]), 1500); }
         else if (act === 'channel') nextChannel();
@@ -1367,6 +1684,7 @@
     safe(renderTopRight, 'soil/lightning'); safe(renderChannel, 'channel');
     safe(renderStats, 'stats'); safe(renderAQ, 'aq'); safe(renderSky, 'sky');
     safe(renderRain, 'rain'); safe(renderBaro, 'baro');
+    safe(toolbarState, 'toolbar');
   }
 
   // ---------------------------------------------------------------- fetching
@@ -1384,7 +1702,8 @@
     return getJSON('ecowitt.json').then(function (j) {
       var changed = !S.arch || j.data.archiveTime !== S.arch.archiveTime;
       setArchive(j);
-      if (changed) renderAll(); else { safe(renderSky, 'sky'); safe(renderHeader, 'header'); }
+      if (changed) { renderAll(); if (S.panel === 'Records') safe(renderRecords, 'records'); }
+      else { safe(renderSky, 'sky'); safe(renderHeader, 'header'); }
     }).catch(function () { safe(renderHeader, 'header'); });
   }
   function fetchLive() {
@@ -1523,6 +1842,7 @@
     S.opts = lsGet('opts', null) || { theme: S.cfg.theme || 'auto', clock24: S.cfg.clock_24h !== false, seconds: true, wake: false };
     S.chIdx = lsGet('chIdx', 0) || 0;
     S.chartYear = lsGet('chartYear', '') || '';
+    S.recPeriod = lsGet('recPeriod', 'day') || 'day';
     urlOptions();
     S.unitKey = loadUnitKey();
     S.lang = loadLangKey();

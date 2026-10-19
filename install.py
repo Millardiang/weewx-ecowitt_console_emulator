@@ -28,10 +28,14 @@
 #
 # whether to show VPD (vapour pressure deficit): the reading and its chart (yes/no),
 #
-# and, only when weewx-EcowittGateway is installed, where live data comes from
-# (otherwise it is always the skin's own live.json):
-#   driver - the driver's ecwLoop.json (its [[loop_json]] option; turned on if needed)
-#   skin   - the skin's own live.json, written by the EcowittConsoleEmulatorLive service
+# and where live data comes from:
+#   driver - the driver's ecwLoop.json (its [[loop_json]] option; turned on if needed;
+#            only offered when weewx-EcowittGateway is installed)
+#   skin   - the skin's own live.json, written from WeeWX loop packets by the
+#            EcowittConsoleEmulatorLive service
+#   mqtt   - the skin's own live.json, written from the gateway's own MQTT messages
+#            (GW1200, GW2000, GW3000 ...); then the broker's address, the gateway's
+#            topic and, if the broker needs them, a user name and password are asked
 #
 # The skin keeps its own database (binding ecce_binding). The installer
 # checks whether that binding, database entry and database already exist and
@@ -40,17 +44,20 @@
 #
 # For unattended installs give the answers on the command line:
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver --vpd=y
+#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
+#       --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 #
+import getpass
 import os
 import posixpath
 import sys
 
 from weecfg.extension import ExtensionInstaller
 
-VERSION = "1.1.1"
+VERSION = "2.0.0"
 REPORT = 'EcowittConsoleEmulatorReport'
 RAIN_CHOICES = ('tipping', 'piezo', 'both')
-LIVE_CHOICES = ('driver', 'skin')
+LIVE_CHOICES = ('driver', 'skin', 'mqtt')
 VPD_CHOICES = ('yes', 'no')
 # Translations in skins/EcowittConsoleEmulator/lang (English is built into the page)
 LANGUAGES = ('ar', 'br', 'ca', 'cn', 'cy', 'cz', 'da', 'de', 'en_US', 'es', 'eu', 'fi', 'fr', 'gr', 'hi',
@@ -133,10 +140,19 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         self.rain_arg = None
         self.live_arg = None
         self.vpd_arg = None
+        self.mqtt_args = {}
 
     def process_args(self, args):
-        """Accept --rain=tipping|piezo|both, --live=driver|skin and --vpd=y|n for unattended installs."""
+        """Accept --rain=tipping|piezo|both, --live=driver|skin|mqtt and --vpd=y|n for unattended
+        installs, and with --live=mqtt: --mqtt-host, --mqtt-port, --mqtt-topic, --mqtt-user,
+        --mqtt-password."""
         for i, a in enumerate(args or []):
+            for opt, key in (('--mqtt-host', 'host'), ('--mqtt-port', 'port'), ('--mqtt-topic', 'topic'),
+                             ('--mqtt-user', 'username'), ('--mqtt-password', 'password')):
+                if a.startswith(opt + '='):
+                    self.mqtt_args[key] = a.split('=', 1)[1].strip()
+                elif a == opt and i + 1 < len(args):
+                    self.mqtt_args[key] = args[i + 1].strip()
             for opt, choices, attr in (('--rain', RAIN_CHOICES, 'rain_arg'), ('--live', LIVE_CHOICES, 'live_arg'),
                                        ('--vpd', VPD_CHOICES, 'vpd_arg')):
                 val = None
@@ -162,7 +178,7 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
 
         if driver is None:
             out("EcowittConsoleEmulator: weewx-EcowittGateway not found; live data will come from the "
-                "skin's own live.json")
+                "skin's own live.json (from loop packets or the gateway's MQTT messages)")
 
         # --- rain sensor(s): default to the driver's own answer -------------
         current = extras.get('rain_sensors')
@@ -197,25 +213,35 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                 vpd = default_vpd
         out("EcowittConsoleEmulator: VPD %s" % ('shown' if vpd == 'yes' else 'not shown'))
 
-        # --- live data: the driver's ecwLoop.json or the skin's live.json ----
+        # --- live data: the driver's ecwLoop.json, or the skin's live.json from
+        # loop packets or from the gateway's MQTT messages ---------------------
         loop = driver.get('loop_json', {}) if driver is not None else {}
+        own = cfg.get('EcowittConsoleEmulator', {})
         live_url, loop_settings = None, None
         if driver is not None:
             loop_path = _loop_json_path(cfg, loop if str(loop.get('enable', 'False')).lower() == 'true' else {})
             live_url = _url_from_page(cfg, loop_path)
-        default_live = (extras.get('live_url') and ('skin' if extras.get('live_url') == 'live.json' else 'driver')) \
-            or ('driver' if live_url else 'skin')
+        if str(own.get('source', '')).lower() in ('mqtt', 'both') and str(own.get('enable', '')).lower() == 'true':
+            default_live = 'mqtt'
+        else:
+            default_live = (extras.get('live_url') and ('skin' if extras.get('live_url') == 'live.json' else 'driver')) \
+                or ('driver' if live_url else 'skin')
+        choices = LIVE_CHOICES if driver is not None else ('skin', 'mqtt')
+        if default_live not in choices:
+            default_live = 'skin'
         live = self.live_arg
         if live is None:
-            if interactive and driver is not None:
+            if interactive:
                 print("\nWhere should the tablet get live (every few seconds) data from?")
-                print("  driver - the driver's %s (its loop_json option%s)" %
-                      (LOOP_NAME, ', already on' if str(loop.get('enable', 'False')).lower() == 'true'
-                       else ', will be turned on'))
-                print("  skin   - this skin's own live.json")
-                live = _ask("Live data source (driver/skin)", default_live, LIVE_CHOICES)
+                if driver is not None:
+                    print("  driver - the driver's %s (its loop_json option%s)" %
+                          (LOOP_NAME, ', already on' if str(loop.get('enable', 'False')).lower() == 'true'
+                           else ', will be turned on'))
+                print("  skin   - this skin's own live.json, from WeeWX loop packets")
+                print("  mqtt   - this skin's own live.json, from the gateway's own MQTT messages")
+                live = _ask("Live data source (%s)" % '/'.join(choices), default_live, choices)
             else:
-                live = default_live if driver is not None else 'skin'
+                live = default_live
         loop_on = str(loop.get('enable', 'False')).lower() == 'true'
         if live == 'driver' and driver is None:
             out("EcowittConsoleEmulator: weewx-EcowittGateway not found, so using the skin's live.json")
@@ -228,8 +254,13 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
             out("EcowittConsoleEmulator: the driver's %s is written outside the web folder (%s), so the tablet "
                 "can't read it. Using the skin's live.json instead." % (LOOP_NAME, loop.get('path')))
             live = 'skin'
+        mqtt = None
+        if live == 'mqtt':
+            mqtt = self._mqtt_settings(own.get('MQTT', {}), interactive)
         out("EcowittConsoleEmulator: live data from %s" %
-            ("the driver's %s (%s)" % (LOOP_NAME, live_url) if live == 'driver' else "the skin's live.json"))
+            ("the driver's %s (%s)" % (LOOP_NAME, live_url) if live == 'driver' else
+             "the skin's live.json, from MQTT topic %s on %s:%s" % (mqtt['topic'], mqtt['host'], mqtt['port'])
+             if live == 'mqtt' else "the skin's live.json"))
 
         # --- the skin's own database: check what already exists ------------
         changed |= self._configure_database(engine, cfg, out)
@@ -246,8 +277,15 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         answers = {'rain_sensors': rain, 'live_url': live_url if live == 'driver' else 'live.json',
                    'show_vpd': 'true' if vpd == 'yes' else 'false'}
         service_enable = 'false' if live == 'driver' else 'true'
+        # 'both' (loop packets and MQTT) is only set by hand; keep it
+        source = 'mqtt' if live == 'mqtt' else 'loop'
+        if live == 'mqtt' and str(own.get('source', '')).lower() == 'both':
+            source = 'both'
         self['config']['StdReport'][REPORT]['Extras'].update(answers)
         self['config']['EcowittConsoleEmulator']['enable'] = service_enable
+        self['config']['EcowittConsoleEmulator']['source'] = source
+        if mqtt:
+            self['config']['EcowittConsoleEmulator']['MQTT'] = dict(mqtt)
         if engine.dry_run:
             return False
         if report is not None:
@@ -256,15 +294,52 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                 if report['Extras'].get(k) != v:
                     report['Extras'][k] = v
                     changed = True
-        if 'EcowittConsoleEmulator' in cfg and cfg['EcowittConsoleEmulator'].get('enable') != service_enable:
-            cfg['EcowittConsoleEmulator']['enable'] = service_enable
-            changed = True
+        if 'EcowittConsoleEmulator' in cfg:
+            section = cfg['EcowittConsoleEmulator']
+            for k, v in (('enable', service_enable), ('source', source)):
+                if section.get(k) != v:
+                    section[k] = v
+                    changed = True
+            if mqtt:
+                section.setdefault('MQTT', {})
+                for k, v in mqtt.items():
+                    if section['MQTT'].get(k) != v:
+                        section['MQTT'][k] = v
+                        changed = True
         if loop_settings:
             driver.setdefault('loop_json', {}).update(loop_settings)
             out("EcowittConsoleEmulator: turned on the driver's %s in the web folder" % LOOP_NAME)
             changed = True
         return changed
 
+
+    def _mqtt_settings(self, current, interactive):
+        """The broker and topic for live data from the gateway's MQTT messages: from the
+        command line, else asked, with the current settings (or the usual ones) as defaults."""
+        a = self.mqtt_args
+        s = {'host': a.get('host') or current.get('host') or 'localhost',
+             'port': a.get('port') or current.get('port') or '1883',
+             'topic': a.get('topic') or current.get('topic') or 'ecowitt/#',
+             'username': a.get('username', current.get('username', '')),
+             'password': a.get('password', current.get('password', ''))}
+        if interactive and not a:
+            print("\nThe gateway publishes to an MQTT broker (set in its web page or the WS View Plus app,")
+            print("under MQTT). The skin subscribes to the same broker and topic.")
+            s['host'] = _ask_text("Broker address", s['host'])
+            s['port'] = _ask_text("Broker port", s['port'])
+            s['topic'] = _ask_text("Gateway's topic (e.g. ecowitt/<MAC>; ecowitt/# takes any)", s['topic'])
+            s['username'] = _ask_text("Broker user name (blank if none)", s['username'])
+            if s['username']:
+                try:
+                    pw = getpass.getpass("Broker password%s: " % (' [keep current]' if s['password'] else ''))
+                except (EOFError, KeyboardInterrupt):
+                    pw = ''
+                s['password'] = pw or s['password']
+            else:
+                s['password'] = ''
+        if not str(s['port']).isdigit():
+            raise ValueError("--mqtt-port must be a number")
+        return s
 
     def _configure_database(self, engine, cfg, out):
         """Set up the skin's database binding, leaving anything that already exists alone."""
@@ -361,6 +436,14 @@ def _url_from_page(cfg, loop_path):
     report = cfg.get('StdReport', {}).get(REPORT, {})
     page = os.path.normpath(os.path.join(cfg.get('WEEWX_ROOT', ''), report.get('HTML_ROOT', os.path.join(web, 'console'))))
     return posixpath.join(*os.path.relpath(loop_path, page).split(os.sep))
+
+
+def _ask_text(prompt, default):
+    try:
+        ans = input("%s [%s]: " % (prompt, default)).strip()
+    except EOFError:
+        return default
+    return ans or default
 
 
 def _ask(prompt, default, choices):

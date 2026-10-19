@@ -40,8 +40,9 @@ EcowittConsoleEmulatorArchive
     and every new archive record is written to it, driver fields included.
 
 EcowittConsoleEmulatorLive
-    Optional service, used only when the driver's own ecwLoop.json is not
-    available to the web server. Writes the latest loop data to live.json.
+    Optional service, used when the driver's own ecwLoop.json is not used.
+    Writes live.json from WeeWX loop packets, or from the gateway's own MQTT
+    messages (source = mqtt), or both, using a small built-in MQTT subscriber.
 """
 
 import glob
@@ -57,6 +58,7 @@ import weedb
 import weewx
 import weewx.manager
 import weewx.units
+import weewx.wxformulas
 import weewx.xtypes
 from weewx.cheetahgenerator import SearchList
 from weewx.engine import StdService
@@ -65,7 +67,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "1.1.1"
+VERSION = "2.0.0"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -284,6 +286,11 @@ def station_timezone(extras=None):
     return name, int(offset.total_seconds()) if offset is not None else 0
 
 
+def _live_source_label(config_dict):
+    conf = (config_dict or {}).get('EcowittConsoleEmulator', {})
+    return live_source(conf) if to_bool(conf.get('enable', False)) else None
+
+
 def build_dashboard_config(skin_dict, config_dict=None):
     """The dashboard configuration: field names, channels, sensors and options."""
     extras = skin_dict.get('Extras', {})
@@ -349,7 +356,14 @@ def build_dashboard_config(skin_dict, config_dict=None):
         'sensors': [{'id': i, 'label': lab, 'batt': b, 'sig': s, 'kind': k} for i, lab, b, s, k in sensors],
         # The driver's ecwLoop.json (set by the installer), or the skin's own live.json
         'live_url': str(extras.get('live_url', 'live.json')),
+        # what the skin's own live.json is written from (loop, mqtt, both), shown in Settings
+        'live_source': _live_source_label(config_dict),
         'live_poll': to_int(extras.get('live_poll', 5)),
+        # Forecast panel: Open-Meteo's 7-day hourly forecast for [Station] latitude/longitude
+        'forecast': to_bool(extras.get('forecast', True)),
+        'forecast_url': str(extras.get('forecast_url', 'https://api.open-meteo.com/v1/forecast')).strip(),
+        # Records panel: highs and lows today, this month, this year and all time
+        'records': to_bool(extras.get('records', True)),
         'archive_poll': to_int(extras.get('archive_poll', 60)),
         'live_stale': to_int(extras.get('live_stale', 120)),
         'theme': str(extras.get('theme', 'auto')),
@@ -467,7 +481,7 @@ class EcowittConsoleEmulatorData(SearchList):
             except Exception as e:
                 log.debug("ecowitt_console_emulator: aggregate %s(%s) failed: %s", aggregate, field, e)
                 return None
-            if aggregate in ('vecdir', 'maxtime', 'mintime', 'lasttime'):
+            if aggregate in ('vecdir', 'maxtime', 'mintime', 'lasttime', 'maxsumtime', 'minsumtime'):
                 return _round(vt[0], 1)
             return self._conv(vt, nd)
 
@@ -577,6 +591,11 @@ class EcowittConsoleEmulatorData(SearchList):
         # --- air quality ----------------------------------------------------
         aq = {'pm': numbered(self.cfg['pm'], 1), 'co2': cur(fm['co2'], 0)}
 
+        # --- records: highs and lows today, this month, this year, all time ---
+        records = self._records(db, keys, fm, stop, agg, [('Tipping', trad_field, trad_rate),
+                                                          ('Piezo', piezo_field, piezo_rate)]) \
+            if self.cfg.get('records', True) else None
+
         units = {'system': 'METRICWX', 'temp': 'C', 'wind': 'ms', 'rain': 'mm', 'rainRate': 'mm/h',
                  'press': 'hpa', 'dist': 'km', 'radiation': 'W/m²', 'pm': 'µg/m³', 'co2': 'ppm'}
 
@@ -594,6 +613,7 @@ class EcowittConsoleEmulatorData(SearchList):
             'soil': numbered(self.cfg['soil']), 'leaf': numbered(self.cfg['leaf']),
             'leak': numbered(self.cfg['leak']),
             'rain': rain, 'baro': baro, 'solar': solar, 'lightning': lightning, 'aq': aq,
+            'records': records,
             'config': self.cfg,
             # calendar years with data: chart_<year>.json, chosen on the charts' Year tab
             'chartYears': _years(db),
@@ -787,6 +807,67 @@ class EcowittConsoleEmulatorData(SearchList):
                 'v': [_round(v, 2) for v in data_vt[0]]}
 
     # -- pieces -------------------------------------------------------------
+    # (id, label, field map key, unit group for the page, aggregates: hi and/or lo)
+    RECORD_ROWS = (
+        ('outTemp', 'Temperature', 'outTemp', 'temp', 'hilo'),
+        ('feelslike', 'Feels Like', 'feelslike', 'temp', 'hilo'),
+        ('dewpoint', 'Dew point', 'dewpoint', 'temp', 'hilo'),
+        ('outHumidity', 'Humidity', 'outHumidity', 'hum', 'hilo'),
+        ('windGust', 'Gust', 'windGust', 'speed', 'hi'),
+        ('barometer', 'Barometer', 'barometer', 'press', 'hilo'),
+        ('radiation', 'Solar radiation', 'radiation', 'rad', 'hi'),
+        ('UV', 'UV index', 'UV', 'uv', 'hi'),
+    )
+
+    def _records(self, db, keys, fm, stop, agg, gauges):
+        """Highest and lowest values, with their times, for today, this month, this
+        calendar year and all time. Read from the daily summaries (each period starts
+        at midnight), so even years of data take a few milliseconds."""
+        try:
+            first = db.firstGoodStamp()
+        except Exception:
+            first = None
+        if not first:
+            return None
+        tm = time.localtime(stop)
+        starts = [('day', startOfDay(stop)), ('month', archiveMonthSpan(stop).start),
+                  ('year', int(time.mktime((tm.tm_year, 1, 1, 0, 0, 0, 0, 0, -1)))),
+                  ('all', startOfDay(first))]
+        spans = [(name, TimeSpan(min(start, stop), stop)) for name, start in starts]
+
+        def pair(field, span, aggregate, nd):
+            v = agg(field, span, aggregate, nd)
+            return [v, agg(field, span, aggregate + 'time', 0) if v is not None else None]
+
+        rows = []
+        for rid, label, key, group, which in self.RECORD_ROWS:
+            field = fm.get(key)
+            if not field or field not in keys:
+                continue
+            nd = 1 if group in ('temp', 'speed', 'press', 'rad', 'uv') else 0
+            row = {'id': rid, 'label': label, 'group': group}
+            for name, span in spans:
+                row[name] = {'hi': pair(field, span, 'max', nd + (2 if group == 'press' else 0))}
+                if which == 'hilo':
+                    row[name]['lo'] = pair(field, span, 'min', nd + (2 if group == 'press' else 0))
+            rows.append(row)
+        # rain: the highest rate and the wettest day, for each gauge that is archived
+        both = sum(1 for _, f, _r in gauges if f and f in keys) > 1
+        for gauge, rain_f, rate_f in gauges:
+            if rate_f and rate_f in keys:
+                row = {'id': 'rate_' + gauge, 'label': 'Rain rate', 'group': 'rainrate',
+                       'gauge': gauge if both else None}
+                for name, span in spans:
+                    row[name] = {'hi': pair(rate_f, span, 'max', 3)}
+                rows.append(row)
+            if rain_f and rain_f in keys:
+                row = {'id': 'day_' + gauge, 'label': 'Daily Rain', 'group': 'rain',
+                       'gauge': gauge if both else None}
+                for name, span in spans:
+                    row[name] = {'hi': pair(rain_f, span, 'maxsum', 3)}
+                rows.append(row)
+        return {'since': first, 'rows': rows}
+
     @staticmethod
     def _piezo_field(cands, keys, year, agg):
         """The piezo gauge is in 'p_rain' and, with the gateway as station driver, also
@@ -1054,24 +1135,398 @@ class EcowittConsoleEmulatorArchive(StdService):
 
 
 # ============================================================================
+#              Gateway MQTT payloads -> the driver's WeeWX fields
+# ============================================================================
+# Ecowitt gateways and consoles with MQTT (GW1200, GW2000, GW3000 ...) publish
+# the same key=value string they send to a "Customized" upload server:
+#   PASSKEY=...&stationtype=GW2000A_V3.1.4&dateutc=2025-07-25+11:50:12&tempinf=72.5&...
+# in US units. Some firmware can also send metric keys (tempc, baromrelhpa,
+# rainratemm ...). Each key is mapped here to the WeeWX field(s) that
+# weewx-EcowittGateway gives the same value, with the unit it arrives in, so
+# the dashboard reads MQTT data exactly as it reads the driver's loop packets.
+# Keys not listed (PASSKEY, stationtype, heap ...) are left out of live.json.
+#
+# Battery fields are passed on as they arrive: binary (0 = OK), level (0-5) or
+# volts, which matches the dashboard's sensor list except for the WH40, WN20
+# and WH68, whose batteries the gateway sends in volts where the driver gives a
+# level; those three are left out. MQTT carries no signal strengths.
+
+_T, _H, _P, _S, _R, _RR, _D = ('group_temperature', 'group_percent', 'group_pressure', 'group_speed',
+                               'group_rain', 'group_rainrate', 'group_direction')
+
+
+def _gw_map():
+    """{protocol key: ((field, ...), unit, unit group)}; unit None = no conversion."""
+    m = {}
+
+    def add(key, fields, unit=None, group=None):
+        m[key] = (tuple(fields) if isinstance(fields, (list, tuple)) else (fields,), unit, group)
+
+    # temperatures: US key, metric key, field(s)
+    temps = [('tempinf', 'tempinc', 'inTemp'), ('tempf', 'tempc', 'outTemp'),
+             ('dewpointf', 'dewpointc', 'dewpoint'), ('tempfeelsf', 'tempfeelsc', 'feelslike'),
+             ('windchillf', 'windchillc', 'windchill'), ('bgt', 'bgtc', 'bgt'), ('wbgt', 'wbgtc', 'wbgt'),
+             ('tf_co2', 'tf_co2c', 'co2_Temp')]
+    temps += [('temp%df' % i, 'temp%dc' % i, 'extraTemp%d' % i) for i in range(1, 9)]
+    temps += [('tf_ch%d' % i, 'tf_ch%dc' % i, 'soilTemp%d' % i) for i in range(1, 9)]
+    temps += [('soil_ec_temp%d' % i, 'soil_ec_temp%dc' % i, 'soilmTemp%d' % i) for i in range(1, 17)]
+    for us, metric, field in temps:
+        add(us, field, 'degree_F', _T)
+        add(metric, field, 'degree_C', _T)
+    # humidity and other percentages
+    for key, field in ([('humidityin', 'inHumidity'), ('humidity', 'outHumidity'), ('humi_co2', 'co2_Hum')] +
+                       [('humidity%d' % i, 'extraHumid%d' % i) for i in range(1, 9)] +
+                       [('soilmoisture%d' % i, 'soilMoist%d' % i) for i in range(1, 17)] +
+                       [('soil_ec_hum%d' % i, 'soilMoist%de' % i) for i in range(1, 17)] +
+                       [('leafwetness_ch%d' % i, 'leafWet%d' % i) for i in range(1, 9)]):
+        add(key, field, 'percent', _H)
+    # pressure
+    add('baromrelin', 'barometer', 'inHg', _P)
+    add('baromabsin', 'pressure', 'inHg', _P)
+    add('baromrelhpa', 'barometer', 'hPa', _P)
+    add('baromabshpa', 'pressure', 'hPa', _P)
+    # wind
+    add('winddir', 'windDir', 'degree_compass', _D)
+    add('winddir_avg10m', 'windDir10', 'degree_compass', _D)
+    for us, metric, field in (('windspeedmph', 'windspeedkmh', 'windSpeed'), ('windgustmph', 'windgustkmh', 'windGust'),
+                              ('maxdailygust', 'maxdailygustkmh', 'maxdailygust')):
+        add(us, field, 'mile_per_hour', _S)
+        add(metric, field, 'km_per_hour', _S)
+    # sun
+    add('solarradiation', 'radiation', 'watt_per_meter_squared', 'group_radiation')
+    add('uv', 'UV', 'uv_index', 'group_uv')
+    # tipping-bucket gauge
+    add('rainratein', 'rainRate', 'inch_per_hour', _RR)
+    add('rainratemm', 'rainRate', 'mm_per_hour', _RR)
+    for stem, field in (('eventrain', 'eventRain'), ('hourlyrain', 'hourRain'), ('dailyrain', 'dayRain'),
+                        ('weeklyrain', 'weekRain'), ('monthlyrain', 'monthRain'), ('yearlyrain', 'yearRain'),
+                        ('totalrain', 'totalRain'), ('last24hrain', 'rain24')):
+        add(stem + 'in', field, 'inch', _R)
+        add(stem + 'mm', field, 'mm', _R)
+    # piezo gauge (WS90, WS85 ...)
+    add('rrain_piezo', ('p_rainrate', 'rrain_piezo', 'hailRate'), 'inch_per_hour', _RR)
+    add('rrain_piezomm', ('p_rainrate', 'rrain_piezo', 'hailRate'), 'mm_per_hour', _RR)
+    for stem, fields in (('erain_piezo', 'erain_piezo'), ('hrain_piezo', 'hrain_piezo'),
+                         ('drain_piezo', 'drain_piezo'), ('wrain_piezo', 'wrain_piezo'),
+                         ('mrain_piezo', 'mrain_piezo'), ('yrain_piezo', ('yrain_piezo', 'p_rainyear')),
+                         ('train_piezo', 'train_piezo'), ('last24hrain_piezo', 'rain24_piezo')):
+        add(stem, fields, 'inch', _R)
+        add(stem + 'mm', fields, 'mm', _R)
+    add('srain_piezo', 'srain_piezo')
+    # lightning (the driver keeps the time of the last strike in lightning_disturber_count)
+    add('lightning', 'lightning_dist', 'km', 'group_distance')
+    add('lightning_mi', 'lightning_dist', 'mile', 'group_distance')
+    add('lightning_num', ('lightningcount', 'lightning_num'))
+    add('lightning_time', 'lightning_disturber_count')
+    # air quality
+    add('co2', 'co2')
+    add('co2_24h', 'co2_24h')
+    add('co2in', 'co2in')
+    add('co2in_24h', 'co2in_24h')
+    for p, field in (('25', 'pm2_5'), ('10', 'pm10_0'), ('1', 'pm1_0'), ('4', 'pm4_0')):
+        add('pm%s_co2' % p, field)
+        add('pm%s_24h_co2' % p, 'pm%s_24h_co2' % p)
+    for i in range(1, 5):
+        add('pm25_ch%d' % i, 'pm25_%d' % i)
+        add('pm25_avg_24h_ch%d' % i, 'pm25_avg_24h_ch%d' % i)
+        add('leak_ch%d' % i, 'leak_%d' % i)
+    # batteries
+    for key, fields in (('wh65batt', 'outTempBatteryStatus'), ('wh25batt', ('wh25_batt', 'inTempBatteryStatus')),
+                        ('wh26batt', 'wh26_batt'), ('wh57batt', 'lightning_Batt'), ('co2_batt', 'co2_Batt'),
+                        ('wh80batt', 'ws80_batt'), ('wh85batt', 'ws85_batt'), ('wh90batt', 'ws90_batt'),
+                        ('wh69batt', 'wh69_batt'), ('bgtbatt', 'bgtbatt'), ('console_batt', 'console_batt'),
+                        ('ws85cap_volt', 'ws85cap_volt'), ('ws90cap_volt', 'ws90cap_volt')):
+        add(key, fields)
+    for i in range(1, 9):
+        add('batt%d' % i, 'batteryStatus%d' % i)
+        add('tf_batt%d' % i, 'soilTempBatt%d' % i)
+        add('leaf_batt%d' % i, 'leafWetBatt%d' % i)
+    for i in range(1, 17):
+        add('soilbatt%d' % i, 'soilMoistBatt%d' % i)
+    for i in range(1, 5):
+        add('pm25batt%d' % i, 'pm25_Batt%d' % i)
+        add('leakbatt%d' % i, 'leak_Batt%d' % i)
+        add('ldsbatt%d' % i, 'ldsbatt%d' % i)
+    return m
+
+
+GATEWAY_MQTT_MAP = _gw_map()
+
+
+def parse_gateway_payload(payload):
+    """A gateway's MQTT payload -> {protocol key: text}.
+
+    Accepts the key=value form (as uploaded to a Customized server), the same
+    preceded by HTTP headers (some GW1200 firmware), or a JSON object."""
+    if isinstance(payload, bytes):
+        payload = payload.decode('utf-8', 'replace')
+    text = payload.strip()
+    if text.startswith('{'):
+        try:
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                return {str(k): v for k, v in obj.items()}
+        except ValueError:
+            pass
+    # HTTP headers before the body: keep what follows the blank line
+    for sep in ('\r\n\r\n', '\n\n'):
+        if sep in text:
+            text = text.split(sep, 1)[1].strip()
+            break
+    from urllib.parse import parse_qsl
+    return dict(parse_qsl(text, keep_blank_values=True))
+
+
+def gateway_to_metricwx(raw):
+    """{protocol key: value} -> {WeeWX field: value in METRICWX}. Unknown keys and
+    empty values (a sensor with no reading yet) are left out."""
+    out = {}
+    for key, value in raw.items():
+        spec = GATEWAY_MQTT_MAP.get(key)
+        if spec is None:
+            continue
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isnan(v) or math.isinf(v):
+            continue
+        fields, unit, group = spec
+        if unit:
+            v = FEED_CONVERTER.convert(weewx.units.ValueTuple(v, unit, group))[0]
+        for f in fields:
+            out[f] = _round(v, 3)
+    # Values the gateway doesn't send but the dashboard shows: WeeWX would add
+    # them to loop packets (StdWXCalculate); worked out the same way here.
+    t, rh = out.get('outTemp'), out.get('outHumidity')
+    if t is not None and rh is not None:
+        if out.get('dewpoint') is None:
+            out['dewpoint'] = _round(weewx.wxformulas.dewpointC(t, rh), 3)
+        if out.get('feelslike') is None:
+            ws = out.get('windSpeed')
+            if t >= 26.7:                                   # 80 °F: heat index
+                fl = weewx.wxformulas.heatindexC(t, rh)
+            elif t <= 10.0 and ws is not None and ws > 1.34:  # 50 °F and over 3 mph: wind chill
+                fl = weewx.wxformulas.windchillMetricWX(t, ws)
+            else:
+                fl = t
+            out['feelslike'] = _round(fl, 3)
+    return out
+
+
+# ============================================================================
+#                  A small MQTT 3.1.1 subscriber (no libraries)
+# ============================================================================
+
+class MqttSubscriber(threading.Thread):
+    """Subscribes to one or more topics and passes each message to on_message.
+
+    Standard library only, so nothing else needs installing in WeeWX's Python.
+    QoS 0, clean session; reconnects after 2 s, 4 s ... up to 2 minutes."""
+
+    def __init__(self, host, port, topics, on_message, username=None, password=None,
+                 client_id=None, keepalive=60, tls=None):
+        super().__init__(name='ecce-mqtt', daemon=True)
+        self.host, self.port, self.topics = host, int(port), list(topics)
+        self.on_message = on_message
+        self.username, self.password = username or None, password or None
+        self.client_id = client_id or 'weewx-ecce-%d' % os.getpid()
+        self.keepalive = max(10, int(keepalive))
+        self.tls = tls                     # None, or an ssl.SSLContext
+        self.stopping = threading.Event()
+        self.sock = None
+        self.last_error = None
+        self.connected = False
+
+    # -- framing ---------------------------------------------------------------
+    @staticmethod
+    def _str(s):
+        b = s.encode('utf-8')
+        return len(b).to_bytes(2, 'big') + b
+
+    @staticmethod
+    def _packet(first, body):
+        n, length = len(body), bytearray()
+        while True:
+            byte, n = n % 128, n // 128
+            length.append(byte | 0x80 if n else byte)
+            if not n:
+                break
+        return bytes([first]) + bytes(length) + body
+
+    def _recv_exact(self, n):
+        buf = bytearray()
+        while len(buf) < n:
+            chunk = self.sock.recv(n - len(buf))
+            if not chunk:
+                raise ConnectionError('the broker closed the connection')
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def _read_packet(self):
+        """The next packet. A timeout before it starts is passed on (the line is
+        idle); one part-way through means the stream is out of step: reconnect."""
+        import socket
+        first = self._recv_exact(1)[0]
+        try:
+            mult, length = 1, 0
+            for _ in range(4):
+                byte = self._recv_exact(1)[0]
+                length += (byte & 0x7F) * mult
+                if not byte & 0x80:
+                    break
+                mult *= 128
+            return first, self._recv_exact(length) if length else b''
+        except socket.timeout:
+            raise ConnectionError('incomplete packet from the broker')
+
+    # -- session ---------------------------------------------------------------
+    def _connect(self):
+        import socket
+        sock = socket.create_connection((self.host, self.port), timeout=15)
+        if self.tls is not None:
+            sock = self.tls.wrap_socket(sock, server_hostname=self.host)
+        self.sock = sock
+        flags = 0x02                                             # clean session
+        payload = self._str(self.client_id)
+        if self.username:
+            flags |= 0x80
+            payload += self._str(self.username)
+            if self.password:
+                flags |= 0x40
+                payload += self._str(self.password)
+        body = self._str('MQTT') + bytes([4, flags]) + self.keepalive.to_bytes(2, 'big') + payload
+        sock.sendall(self._packet(0x10, body))
+        first, body = self._read_packet()
+        if first >> 4 != 2 or len(body) < 2:
+            raise ConnectionError('unexpected reply to CONNECT')
+        if body[1]:
+            raise PermissionError({1: 'protocol version not accepted', 2: 'client id refused',
+                                   3: 'broker unavailable', 4: 'wrong user name or password',
+                                   5: 'not authorised (check the user name and password)'}.get(body[1], 'refused (code %d)' % body[1]))
+        sub = b''.join(self._str(t) + b'\x00' for t in self.topics)
+        sock.sendall(self._packet(0x82, (1).to_bytes(2, 'big') + sub))
+
+    def _session(self):
+        """Run one connection until it fails or stop() is called."""
+        import socket
+        self._connect()
+        self.sock.settimeout(self.keepalive / 2.0)
+        last_in = last_out = time.time()
+        while not self.stopping.is_set():
+            try:
+                first, body = self._read_packet()
+            except socket.timeout:
+                now = time.time()
+                if now - last_in > self.keepalive * 1.5:
+                    raise ConnectionError('no reply from the broker for %ds' % int(now - last_in))
+                if now - last_out >= self.keepalive / 2.0:
+                    self.sock.sendall(b'\xc0\x00')               # PINGREQ
+                    last_out = now
+                continue
+            last_in = time.time()
+            kind = first >> 4
+            if kind == 9:                                        # SUBACK
+                if any(b == 0x80 for b in body[2:]):
+                    raise PermissionError('not allowed to subscribe to %s' % ', '.join(self.topics))
+                if not self.connected:
+                    self.connected = True
+                    log.info("ecowitt_console_emulator: MQTT subscribed to %s on %s:%d",
+                             ', '.join(self.topics), self.host, self.port)
+                    self.last_error = None
+            elif kind == 3:                                      # PUBLISH
+                qos = (first >> 1) & 3
+                tlen = int.from_bytes(body[:2], 'big')
+                topic = body[2:2 + tlen].decode('utf-8', 'replace')
+                pos = 2 + tlen
+                if qos:                                          # brokers may still send QoS 1/2
+                    pid = body[pos:pos + 2]
+                    pos += 2
+                    self.sock.sendall(bytes([0x40 if qos == 1 else 0x50, 2]) + pid)
+                try:
+                    self.on_message(topic, body[pos:])
+                except Exception as e:
+                    log.error("ecowitt_console_emulator: MQTT message on %s failed: %s", topic, e)
+            elif kind == 6:                                      # PUBREL -> PUBCOMP
+                self.sock.sendall(b'\x70\x02' + body[:2])
+
+    def run(self):
+        delay = 2
+        while not self.stopping.is_set():
+            try:
+                self._session()
+            except Exception as e:
+                if self.stopping.is_set():
+                    break
+                msg = str(e) or e.__class__.__name__
+                # say so once; the same failure again only at debug level
+                if msg != self.last_error:
+                    log.error("ecowitt_console_emulator: MQTT %s:%d: %s (retrying)", self.host, self.port, msg)
+                    self.last_error = msg
+                else:
+                    log.debug("ecowitt_console_emulator: MQTT %s:%d: %s", self.host, self.port, msg)
+                if self.connected:
+                    delay = 2
+                elif isinstance(e, PermissionError):
+                    delay = max(delay, 60)                       # bad password: don't hammer the broker
+            finally:
+                self.connected = False
+                self._close()
+            self.stopping.wait(delay)
+            delay = min(120, delay * 2)
+
+    def _close(self):
+        sock, self.sock = self.sock, None
+        if sock is not None:
+            try:
+                sock.sendall(b'\xe0\x00')                        # DISCONNECT
+            except OSError:
+                pass
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    def stop(self):
+        self.stopping.set()
+        self._close()
+
+
+# ============================================================================
 #                         Live (loop packet) service
 # ============================================================================
 
 class EcowittConsoleEmulatorLive(StdService):
-    """Writes the latest loop data to live.json.
+    """Writes the latest live data to live.json, from WeeWX loop packets, from
+    the gateway's own MQTT messages, or both.
 
     Only needed when the driver's ecwLoop.json can't be served next to the
-    dashboard; the installer turns it on or off. Configured in weewx.conf:
+    dashboard, or to take live data from MQTT; the installer turns it on or off.
+    Configured in weewx.conf:
 
     [EcowittConsoleEmulator]
         enable = false
         report = EcowittConsoleEmulatorReport
         interval = 5
         filename = live.json
+        # loop: WeeWX loop packets (any driver); mqtt: the gateway's MQTT
+        # messages; both: loop packets, with MQTT values on top
+        source = loop
+        [[MQTT]]
+            host = localhost
+            port = 1883
+            topic = ecowitt/#           # the gateway's topic; several: a, b
+            username =
+            password =
+            # tls = true for a broker that needs it (the gateway itself can't use TLS)
+            tls = false
+            ca_certs =                  # optional CA file for tls
+            keepalive = 60
     """
 
     def __init__(self, engine, config_dict):
         super().__init__(engine, config_dict)
+        self.mqtt = None
         conf = config_dict.get('EcowittConsoleEmulator', {})
         if not to_bool(conf.get('enable', False)):
             log.info("ecowitt_console_emulator: own live.json disabled (the dashboard uses the driver's ecwLoop.json)")
@@ -1091,12 +1546,38 @@ class EcowittConsoleEmulatorLive(StdService):
                 path = os.path.join(config_dict.get('WEEWX_ROOT', ''),
                                     config_dict.get('StdReport', {}).get('HTML_ROOT', 'public_html'), 'console')
         self.path = os.path.join(path, conf.get('filename', 'live.json'))
-        self.cache = {}
+        self.cache = {}          # from loop packets, merged as they arrive
+        self.mqtt_data = {}      # the gateway's latest MQTT message (each one is a full set)
+        self.mqtt_time = 0
+        # with source = both, MQTT values older than this no longer hide the loop's
+        self.mqtt_stale = to_int(conf.get('mqtt_stale', 120))
         self.last_write = 0
         self.lock = threading.Lock()
-        self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
-        log.info("ecowitt_console_emulator: version %s, writing live data to %s every %.0fs",
-                 VERSION, self.path, self.interval)
+        self.write_lock = threading.Lock()
+        self.source = live_source(conf)
+        if self.source in ('loop', 'both'):
+            self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
+        if self.source in ('mqtt', 'both'):
+            self._start_mqtt(conf.get('MQTT', {}))
+        log.info("ecowitt_console_emulator: version %s, writing live data to %s (from %s)",
+                 VERSION, self.path, {'loop': 'loop packets, every %.0fs' % self.interval,
+                                      'mqtt': 'MQTT', 'both': 'loop packets and MQTT'}[self.source])
+
+    def _start_mqtt(self, mc):
+        tls = None
+        if to_bool(mc.get('tls', False)):
+            import ssl
+            tls = ssl.create_default_context(cafile=mc.get('ca_certs') or None)
+            if to_bool(mc.get('tls_insecure', False)):
+                tls.check_hostname = False
+                tls.verify_mode = ssl.CERT_NONE
+        topics = [t for t in _as_list(mc.get('topic', 'ecowitt/#')) if t]
+        port = to_int(mc.get('port', 8883 if tls else 1883))
+        self.mqtt = MqttSubscriber(str(mc.get('host', 'localhost')), port, topics, self.new_mqtt_message,
+                                   username=mc.get('username'), password=mc.get('password'),
+                                   client_id=mc.get('client_id'), keepalive=to_int(mc.get('keepalive', 60)),
+                                   tls=tls)
+        self.mqtt.start()
 
     def new_loop_packet(self, event):
         try:
@@ -1112,14 +1593,42 @@ class EcowittConsoleEmulatorLive(StdService):
         except Exception as e:
             log.error("ecowitt_console_emulator: live packet failed: %s", e)
 
+    def new_mqtt_message(self, topic, payload):
+        data = gateway_to_metricwx(parse_gateway_payload(payload))
+        if not data:
+            log.debug("ecowitt_console_emulator: MQTT message on %s has no readings; ignored", topic)
+            return
+        with self.lock:
+            self.mqtt_data = data
+            self.mqtt_time = time.time()
+        # the gateway sends every 8 s or more, so each message is written at once
+        now = time.time()
+        self.last_write = now
+        self._write(now)
+
     def _write(self, now):
         with self.lock:
-            payload = {'written': int(now), 'units': 'METRICWX', 'data': dict(self.cache)}
-        try:
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
-            tmp = self.path + '.tmp'
-            with open(tmp, 'w') as f:
-                json.dump(payload, f, separators=(',', ':'), default=str)
-            os.replace(tmp, self.path)
-        except OSError as e:
-            log.error("ecowitt_console_emulator: cannot write %s: %s", self.path, e)
+            data = dict(self.cache)
+            if self.source == 'mqtt' or now - self.mqtt_time < self.mqtt_stale:
+                data.update(self.mqtt_data)
+            payload = {'written': int(now), 'units': 'METRICWX', 'data': data}
+        with self.write_lock:
+            try:
+                os.makedirs(os.path.dirname(self.path), exist_ok=True)
+                tmp = self.path + '.tmp'
+                with open(tmp, 'w') as f:
+                    json.dump(payload, f, separators=(',', ':'), default=str)
+                os.replace(tmp, self.path)
+            except OSError as e:
+                log.error("ecowitt_console_emulator: cannot write %s: %s", self.path, e)
+
+    def shutDown(self):
+        if self.mqtt is not None:
+            self.mqtt.stop()
+            self.mqtt = None
+
+
+def live_source(conf):
+    """[EcowittConsoleEmulator] source: loop, mqtt or both (default loop)."""
+    v = str((conf or {}).get('source', 'loop')).strip().lower()
+    return v if v in ('loop', 'mqtt', 'both') else 'loop'
