@@ -194,7 +194,7 @@ works when weewx-EcowittGateway is installed):
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
-    --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
+    --mqtt-host=<IP-ADDRESS-BROKER> --mqtt-topic=ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS> --mqtt-user=weewx --mqtt-password=secret
 ```
 
 The answers are stored in `weewx.conf` under
@@ -222,9 +222,9 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
     filename = live.json
     source = loop              # loop, mqtt or both
     [[MQTT]]                   # only with source = mqtt or both
-        host = 192.168.1.20
+        host = <IP-ADDRESS-BROKER>
         port = 1883
-        topic = ecowitt/1C6920E3A8F3
+        topic = ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS>
         username = weewx
         password = secret
 
@@ -254,9 +254,9 @@ themselves, as often as every 8 seconds. The skin can take its live data from th
        enable = true
        source = mqtt
        [[MQTT]]
-           host = 192.168.1.20       # the broker
+           host = <IP-ADDRESS-BROKER>       # the broker
            port = 1883
-           topic = ecowitt/1C6920E3A8F3   # the gateway's topic; ecowitt/# takes any
+           topic = ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS>   # the gateway's topic; ecowitt/# takes any
            username = weewx          # leave out if the broker has no passwords
            password = secret
            # tls = true, ca_certs = /path/ca.pem   for a TLS listener (WeeWX can use one
@@ -269,7 +269,7 @@ themselves, as often as every 8 seconds. The skin can take its live data from th
    ```
 
 3. Restart WeeWX. The log shows
-   `ecowitt_console_emulator: MQTT subscribed to ecowitt/... on 192.168.1.20:1883`,
+   `ecowitt_console_emulator: MQTT subscribed to ecowitt/... on <IP-ADDRESS-BROKER>:1883`,
    and Settings on the dashboard shows *Live data: OK, … s old (live.json · MQTT)*.
 
 WeeWX itself subscribes, so the broker's password stays on the WeeWX machine and
