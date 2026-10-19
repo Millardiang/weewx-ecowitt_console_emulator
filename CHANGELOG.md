@@ -7,6 +7,22 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Optional MQTT live-data source as an alternative to polling `live.json`. It is off by
+  default (`mqtt_enabled = false`), so existing installations behave as before. When
+  enabled, the dashboard subscribes over MQTT-over-WebSocket to the topic of the WeeWX
+  `mqtt` uploader and keeps `live.json` as the fallback source; the header Wi-Fi icon
+  names the source in use. New files: `js/mqtt-adapter.js` (payload parsing, unit
+  conversion, field mapping), `js/mqtt-live.js` (the connection) and
+  `js/vendor/mqtt.min.js` (mqtt.js 5.16.1, MIT). `console.js` gained a shared
+  `applyLiveData`/`applyLiveModel` path so both sources feed the same model.
+- New `[Extras]` settings (Belchertown-compatible names): `mqtt_enabled`,
+  `mqtt_websockets_host`, `mqtt_websockets_port`, `mqtt_websockets_ssl`,
+  `mqtt_websockets_path`, `mqtt_topic`, `mqtt_username`, `mqtt_password`,
+  `mqtt_stale_seconds`.
+- `skin.conf` `copy_always` now includes `js/vendor/*.js`.
+- Unit tests for the MQTT adapter and connection (`node --test tests/*.test.js`).
+
 ## [1.1.1] – 2026-10-15
 
 ### Added

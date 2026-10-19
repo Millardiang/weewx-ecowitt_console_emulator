@@ -125,7 +125,12 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                         skin + '/ecce_payload.inc',
                         skin + '/manifest.json']),
                 (skin + '/css', [skin + '/css/console.css']),
-                (skin + '/js', [skin + '/js/console.js']),
+                (skin + '/js', [skin + '/js/console.js',
+                                # EcoMQ: MQTT live source (DESIGN.md section 3)
+                                skin + '/js/mqtt-adapter.js',
+                                skin + '/js/mqtt-live.js']),
+                (skin + '/js/vendor', [skin + '/js/vendor/mqtt.min.js',  # EcoMQ
+                                       skin + '/js/vendor/README.md']),
                 (skin + '/icons', [skin + '/icons/icon.svg']),
                 (skin + '/lang', [skin + '/lang/%s.json' % c for c in LANGUAGES]),
             ],
