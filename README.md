@@ -75,6 +75,10 @@ the choice is kept in the browser. "Add to Home screen" apps can rotate freely.
   (its `[[loop_json]]` option) instead, and the skin's service is switched off.
   Either way the browser converts the units. Live data is the only source of
   **battery and signal** levels, since those aren't archived.
+* **Optional: live data over MQTT** – instead of polling `live.json`, the browser can
+  subscribe to the loop topic of WeeWX's `mqtt` uploader over MQTT-over-WebSocket. It is
+  off by default; see [MQTT live data](#mqtt-live-data-optional). The tooltip of the
+  Wi-Fi icon says which source is in use.
 
 The page uses live values while they are fresh and falls back to the archive
 otherwise. The Wi-Fi icon in the header shows which: green = live, yellow =
@@ -309,6 +313,53 @@ the page.
   sensor ids, e.g. `Greenhouse = extraTemp1, extraHumid1, wn31_ch1`
 * `[[SoilChannels]]`, `[[LeafChannels]]`, `[[LeakChannels]]`, `[[PMChannels]]` – custom labels/fields
 * `[[Sensors]]` – battery/signal list; `kind` is `binary` (0 = OK), `level` (0–5, 6 = DC) or `volt:<low volts>`
+
+### MQTT live data (optional)
+
+Instead of polling `live.json` every few seconds, the dashboard can receive each loop
+packet over MQTT. This is **off by default**; nothing changes unless you turn it on.
+
+You need:
+
+* a broker that accepts **MQTT over WebSocket** (`ws://` or `wss://`). If the dashboard
+  is served over HTTPS, the broker must offer `wss://`;
+* WeeWX's `mqtt` uploader publishing the whole loop packet as one JSON message, for
+  example to `weather/loop`.
+
+Set the options in `weewx.conf`, not in `skin.conf`, so that they survive an update:
+
+```
+[StdReport]
+    [[EcowittConsoleEmulatorReport]]
+        [[[Extras]]]
+            mqtt_enabled = true
+            mqtt_websockets_host = broker.example.org
+            mqtt_websockets_port = 443
+            mqtt_websockets_ssl = true
+            mqtt_topic = weather/loop
+```
+
+| Option | Meaning | Default |
+|---|---|---|
+| `mqtt_enabled` | turn the MQTT source on | `false` |
+| `mqtt_websockets_host` | broker host name (required when enabled) | – |
+| `mqtt_websockets_port` | WebSocket port | `9001` |
+| `mqtt_websockets_ssl` | use `wss://` | `true` |
+| `mqtt_websockets_path` | WebSocket URL path | `/` |
+| `mqtt_topic` | the topic that carries the whole loop packet | `weather/loop` |
+| `mqtt_username`, `mqtt_password` | optional login; empty = anonymous | empty |
+| `mqtt_stale_seconds` | how long MQTT counts as fresh without a message | `30` |
+
+The names match Belchertown's, so values can be copied from an existing Belchertown setup.
+
+While MQTT delivers fresh data, the page does not poll `live.json`. If the broker goes
+quiet for `mqtt_stale_seconds`, polling resumes by itself, and the page reconnects to the
+broker in the background. An invalid port or stale value falls back to its default with
+one warning in the log.
+
+Everything in `[Extras]` is embedded in the page, so a username and password set here
+can be read by anyone who opens the dashboard. Prefer an **anonymous, read-only**
+subscription that is limited to this one topic.
 
 ### Options in the address
 
