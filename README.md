@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 1.1.1
+# Version 1.1.2
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
@@ -439,6 +439,11 @@ again.
   (`ecowitt.json`) is still the old kind. The page's script, styles and
   translations are linked with a fingerprint of their contents, so browsers load
   the new copies as soon as WeeWX has rewritten the page.
+* **Reports stop with `No such table archive`** (after `Cannot get columns of table
+  archive, and no schema specified`) – the skin's own database exists but is empty,
+  because it couldn't be created at start-up; the reason is in the log just after
+  WeeWX starts (`ecowitt_console_emulator: could not prepare database ...`). Fixed in
+  1.1.2: update and restart WeeWX, and the database is created again.
 * **Wi-Fi icon yellow** – live data isn't arriving. With the skin's own
   `live.json`, check that `[EcowittConsoleEmulator] enable = true` and look for
   `ecowitt_console_emulator: ... writing live data to ...` in the log. With
