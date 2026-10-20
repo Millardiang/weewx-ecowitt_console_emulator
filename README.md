@@ -84,7 +84,13 @@ the choice is kept in the browser. "Add to Home screen" apps can rotate freely.
 
 The page uses live values while they are fresh and falls back to the archive
 otherwise. The Wi-Fi icon in the header shows which: green = live, yellow =
-archive only, red = stale.
+archive only, red = stale. While it is green it pulses briefly each time new live
+data arrives (a soft glow only, if the device is set to reduce motion). The tag beside it shows where live data is coming
+from: **Loop** (WeeWX loop packets, or weewx-EcowittGateway's `ecwLoop.json`),
+**MQTT** (the gateway's own messages) or **Loop + MQTT** (`source = both`). With
+`source = both` it shows what the latest `live.json` was actually made from, so if
+MQTT stops it changes to **Loop**. While live data isn't arriving, the tag is
+dimmed and shows the source that is set up. Settings shows the same.
 
 ## Requirements
 
@@ -194,7 +200,7 @@ works when weewx-EcowittGateway is installed):
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
-    --mqtt-host=<IP-ADDRESS-BROKER> --mqtt-topic=ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS> --mqtt-user=weewx --mqtt-password=secret
+    --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 ```
 
 The answers are stored in `weewx.conf` under
@@ -222,9 +228,9 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
     filename = live.json
     source = loop              # loop, mqtt or both
     [[MQTT]]                   # only with source = mqtt or both
-        host = <IP-ADDRESS-BROKER>
+        host = 192.168.1.20
         port = 1883
-        topic = ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS>
+        topic = ecowitt/1C6920E3A8F3
         username = weewx
         password = secret
 
@@ -254,9 +260,9 @@ themselves, as often as every 8 seconds. The skin can take its live data from th
        enable = true
        source = mqtt
        [[MQTT]]
-           host = <IP-ADDRESS-BROKER>       # the broker
+           host = 192.168.1.20       # the broker
            port = 1883
-           topic = ecowitt/<GATEWAY-MAC-ADDRESS-WITHOUT-COLONS>   # the gateway's topic; ecowitt/# takes any
+           topic = ecowitt/1C6920E3A8F3   # the gateway's topic; ecowitt/# takes any
            username = weewx          # leave out if the broker has no passwords
            password = secret
            # tls = true, ca_certs = /path/ca.pem   for a TLS listener (WeeWX can use one
@@ -269,7 +275,7 @@ themselves, as often as every 8 seconds. The skin can take its live data from th
    ```
 
 3. Restart WeeWX. The log shows
-   `ecowitt_console_emulator: MQTT subscribed to ecowitt/... on <IP-ADDRESS-BROKER>:1883`,
+   `ecowitt_console_emulator: MQTT subscribed to ecowitt/... on 192.168.1.20:1883`,
    and Settings on the dashboard shows *Live data: OK, … s old (live.json · MQTT)*.
 
 WeeWX itself subscribes, so the broker's password stays on the WeeWX machine and
@@ -533,6 +539,11 @@ again.
   (`ecowitt.json`) is still the old kind. The page's script, styles and
   translations are linked with a fingerprint of their contents, so browsers load
   the new copies as soon as WeeWX has rewritten the page.
+* **Reports stop with `No such table archive`** (after `Cannot get columns of table
+  archive, and no schema specified`) – the skin's own database exists but is empty,
+  because it couldn't be created at start-up; the reason is in the log just after
+  WeeWX starts (`ecowitt_console_emulator: could not prepare database ...`). Fixed in
+  1.1.2: update and restart WeeWX, and the database is created again.
 * **Wi-Fi icon yellow** – live data isn't arriving. With the skin's own
   `live.json`, check that `[EcowittConsoleEmulator] enable = true` and look for
   `ecowitt_console_emulator: ... writing live data to ...` in the log. With

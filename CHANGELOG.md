@@ -51,6 +51,20 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   between the status chips and the clock; the clock is a little smaller and the date
   dimmer. Long names are made smaller to fit before they are cut short.
 
+## [1.1.2] – 2026-10-20
+
+### Fixed
+- Every report could stop with `No such table archive` (and `Cannot get columns of
+  table archive, and no schema specified`) when the skin's own database couldn't be
+  created at start-up: WeeWX was left with an empty database file. This happened when
+  the main database has a column whose name differs from one the skin adds only in
+  capital letters (for example `FeelsLike` and `feelslike`), which SQLite and MySQL
+  treat as the same name. Such columns are now recognised, and if the database still
+  can't be made with the main database's columns, it is made with the standard
+  schema (wview_extended plus the driver fields) instead, with an error in the log
+  saying why. An installation already showing the error repairs itself at the next
+  start of WeeWX; nothing needs to be done by hand.
+
 ## [1.1.1] – 2026-10-15
 
 ### Added
@@ -201,7 +215,8 @@ Released under the GNU General Public License, version 3 or later (see LICENSE).
   gateway or console.
 
 [Unreleased]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.1...v2.0.0
+[2.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.2...v2.0.0
+[1.1.2]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Millardiang/weewx-ecowitt_console_emulator/releases/tag/v1.0.0

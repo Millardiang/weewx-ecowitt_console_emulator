@@ -999,8 +999,10 @@ def _schema_like(src, driver_fields=True):
                      [c for c, _ in table if c not in ('dateTime', 'usUnits', 'interval')])
     days = [(k, 'vector' if k == 'wind' else 'scalar') for k in daykeys]
     if driver_fields:
-        have = {c for c, _ in table}
-        extra = [c for c in DRIVER_COLUMNS if c not in have]
+        # SQLite and MySQL column names ignore case: a main database with 'FeelsLike'
+        # already has 'feelslike', and adding it again would stop the table being made
+        have = {c.lower() for c, _ in table}
+        extra = [c for c in DRIVER_COLUMNS if c.lower() not in have]
         table += [(c, 'REAL') for c in extra]
         days += [(c, 'scalar') for c in extra]
     return {'table': table, 'day_summaries': days}
@@ -1049,7 +1051,15 @@ class EcowittConsoleEmulatorArchive(StdService):
             new_schema = _schema_like(src, to_bool(conf.get('driver_fields', True)))
             log.info("ecowitt_console_emulator: database '%s' not found; creating it with the schema of '%s' "
                      "(%d columns)", db_name, self.source, len(new_schema['table']))
-            weewx.manager.DaySummaryManager.open_with_create(db_dict, table, new_schema).close()
+            try:
+                weewx.manager.DaySummaryManager.open_with_create(db_dict, table, new_schema).close()
+            except Exception as e:
+                # Never leave the database without its table: every report run would then
+                # fail ('No such table archive'). Fall back to the standard schema.
+                log.error("ecowitt_console_emulator: could not create '%s' with the schema of '%s' (%s); "
+                          "creating it with the standard schema (wview_extended and the driver fields) instead",
+                          db_name, self.source, e)
+                weewx.manager.DaySummaryManager.open_with_create(db_dict, table, schema).close()
             created = True
 
         # 2. Copy history (new database) or fill the gap since the last record
