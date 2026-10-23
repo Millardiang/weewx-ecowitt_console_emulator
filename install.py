@@ -43,7 +43,13 @@
 # if it doesn't exist, with the same schema as the station's main database.
 #
 # For unattended installs give the answers on the command line:
+# Last, it can name your sensors: the channels, soil, leaf, leak and PM sensors that have
+# readings in the database are listed, and each can be given a name (Porch, Attic,
+# Freezer ...) shown on the dashboard instead of "WN31 CH1".
+#
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver --vpd=y
+#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --label=extraTemp1=Porch \
+#       --label=extraTemp2=Attic --label=soilTemp1=Freezer
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
 #       --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 #
@@ -141,12 +147,20 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         self.live_arg = None
         self.vpd_arg = None
         self.mqtt_args = {}
+        self.label_args = {}
 
     def process_args(self, args):
         """Accept --rain=tipping|piezo|both, --live=driver|skin|mqtt and --vpd=y|n for unattended
         installs, and with --live=mqtt: --mqtt-host, --mqtt-port, --mqtt-topic, --mqtt-user,
         --mqtt-password."""
         for i, a in enumerate(args or []):
+            # --label=FIELD=NAME (repeatable): a sensor's name on the dashboard
+            val = a.split('=', 1)[1] if a.startswith('--label=') else (args[i + 1] if a == '--label' and i + 1 < len(args) else None)
+            if val is not None:
+                field, _, name = val.partition('=')
+                if field.strip() not in SENSOR_FIELDS or not name.strip():
+                    raise ValueError("--label must be FIELD=NAME, FIELD one of: %s" % ', '.join(SENSOR_FIELDS))
+                self.label_args[field.strip()] = _clean_label(name)
             for opt, key in (('--mqtt-host', 'host'), ('--mqtt-port', 'port'), ('--mqtt-topic', 'topic'),
                              ('--mqtt-user', 'username'), ('--mqtt-password', 'password')):
                 if a.startswith(opt + '='):
@@ -265,6 +279,9 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         # --- the skin's own database: check what already exists ------------
         changed |= self._configure_database(engine, cfg, out)
 
+        # --- names for the sensors (Porch, Attic, Freezer ...) ---------------
+        name_sections = self._sensor_names(cfg, extras, interactive, out)
+
         # --- per-year chart files (chart_2025.json ...) are written once and then kept;
         # remove them so WeeWX writes them again, with this version's charts
         if not engine.dry_run:
@@ -282,6 +299,7 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         if live == 'mqtt' and str(own.get('source', '')).lower() == 'both':
             source = 'both'
         self['config']['StdReport'][REPORT]['Extras'].update(answers)
+        self['config']['StdReport'][REPORT]['Extras'].update(name_sections)
         self['config']['EcowittConsoleEmulator']['enable'] = service_enable
         self['config']['EcowittConsoleEmulator']['source'] = source
         if mqtt:
@@ -292,6 +310,10 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
             report.setdefault('Extras', {})
             for k, v in answers.items():
                 if report['Extras'].get(k) != v:
+                    report['Extras'][k] = v
+                    changed = True
+            for k, v in name_sections.items():
+                if dict(report['Extras'].get(k) or {}) != v:
                     report['Extras'][k] = v
                     changed = True
         if 'EcowittConsoleEmulator' in cfg:
@@ -340,6 +362,81 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
         if not str(s['port']).isdigit():
             raise ValueError("--mqtt-port must be a number")
         return s
+
+    def _sensor_names(self, cfg, extras, interactive, out):
+        """Ask for (or take from --label) a name for each sensor that has readings, and return
+        the [[Channels]], [[SoilChannels]] ... sections to write: only those with a changed
+        name, each listing every sensor of its kind, so sensors added later still appear."""
+        current = _current_labels(extras)
+        names = dict(current)
+        names.update(self.label_args)
+        if interactive and not self.label_args:
+            found = _sensors_with_data(cfg)
+            if found is None:
+                out("EcowittConsoleEmulator: couldn't read the database to list your sensors; they can be "
+                    "named later in weewx.conf (see 'Naming sensors' in the README)")
+            elif not found:
+                out("EcowittConsoleEmulator: no sensor readings in the database yet; sensors can be named "
+                    "later by installing again, or in weewx.conf")
+            else:
+                print("\nThe dashboard can show your own names for your sensors (Porch, Attic, Freezer ...)")
+                print("instead of \"WN31 CH1\". Found: " + ', '.join(current.get(f) or SENSOR_DEFAULTS[f] for f in found))
+                if _ask("Name them now (yes/no)", 'no', ('yes', 'no')) == 'yes':
+                    print("Press Enter to keep the name shown in [brackets].")
+                    used = set()
+                    for f in found:
+                        default = names.get(f) or SENSOR_DEFAULTS[f]
+                        probe = f.startswith('soilTemp')
+                        prompt = '  %s (%s)%s' % (SENSOR_DESC[f], f, ', shown with the CH button if named' if probe else '')
+                        while True:
+                            ans = _ask_text(prompt, default if (not probe or f in names) else 'not shown')
+                            ans = '' if ans == 'not shown' else _clean_label(ans)
+                            if ans and ans in used:
+                                print("    '%s' is already used; please choose another name." % ans)
+                                continue
+                            break
+                        if ans and ans == SENSOR_DEFAULTS[f] and f not in current:
+                            continue                # left as it is: nothing to write
+                        if ans:
+                            used.add(ans)
+                            names[f] = ans
+                        else:
+                            names.pop(f, None)
+        sections = {}
+        for section, rows in SENSOR_SECTIONS.items():
+            changed = any(names.get(r[0]) != current.get(r[0]) for r in rows)
+            if not changed:
+                continue
+            spec = {r[0]: ', '.join(r[1:]) for r in rows}
+            existing = extras.get(section) or {}
+            body = {}
+            if existing:
+                # edit the section that is there: rename its entries, keep its order, its
+                # other entries and any left out; add newly named WN34 probes at the end
+                seen = set()
+                for label, entry in existing.items():
+                    text = ', '.join(entry) if isinstance(entry, (list, tuple)) else str(entry)
+                    field = text.split(',')[0].strip()
+                    if field in spec:
+                        seen.add(field)
+                        if field.startswith('soilTemp') and field not in names:
+                            continue              # a probe whose name was cleared: not shown
+                        body[names.get(field) or SENSOR_DEFAULTS[field]] = text
+                    else:
+                        body[label] = text
+                for field in spec:
+                    if field not in seen and field in names and names[field] != current.get(field):
+                        body[names[field]] = spec[field]      # named in this install
+            else:
+                # a new section lists every sensor of its kind, so ones added later still appear
+                for field in spec:
+                    if field.startswith('soilTemp') and field not in names:
+                        continue                  # WN34 probes are only shown when named
+                    body[names.get(field) or SENSOR_DEFAULTS[field]] = spec[field]
+            sections[section] = body
+            out("EcowittConsoleEmulator: sensor names in [[%s]]: %s" % (
+                section, ', '.join(names[r[0]] for r in rows if names.get(r[0]))))
+        return sections
 
     def _configure_database(self, engine, cfg, out):
         """Set up the skin's database binding, leaving anything that already exists alone."""
@@ -436,6 +533,83 @@ def _url_from_page(cfg, loop_path):
     report = cfg.get('StdReport', {}).get(REPORT, {})
     page = os.path.normpath(os.path.join(cfg.get('WEEWX_ROOT', ''), report.get('HTML_ROOT', os.path.join(web, 'console'))))
     return posixpath.join(*os.path.relpath(loop_path, page).split(os.sep))
+
+
+# The sensors that can be named, as the skin lists them by default:
+# section -> [(field, *rest of the entry)]; Channels: temp, humidity, sensor id; others: field, sensor id.
+# WN34 probes (soilTemp1-8) aren't among the channels by default; naming one adds it.
+SENSOR_SECTIONS = {
+    'Channels': [('inTemp', 'inTemp', 'inHumidity', 'wh25')] +
+                [('extraTemp%d' % i, 'extraTemp%d' % i, 'extraHumid%d' % i, 'wn31_ch%d' % i) for i in range(1, 9)] +
+                [('soilTemp%d' % i, 'soilTemp%d' % i, 'None', 'wn34_ch%d' % i) for i in range(1, 9)],
+    'SoilChannels': [('soilMoist%d' % i, 'soilMoist%d' % i, 'wh51_ch%d' % i) for i in range(1, 17)],
+    'LeafChannels': [('leafWet%d' % i, 'leafWet%d' % i, 'wn35_ch%d' % i) for i in range(1, 9)],
+    'LeakChannels': [('leak_%d' % i, 'leak_%d' % i, 'wh55_ch%d' % i) for i in range(1, 5)],
+    'PMChannels': [('pm25_%d' % i, 'pm25_%d' % i, 'wh41_ch%d' % i) for i in range(1, 5)] + [('pm2_5', 'pm2_5', 'wh45')],
+}
+SENSOR_FIELDS = [r[0] for rows in SENSOR_SECTIONS.values() for r in rows]
+SENSOR_DEFAULTS = dict([('inTemp', 'Indoor')] + [('extraTemp%d' % i, 'WN31 CH%d' % i) for i in range(1, 9)] +
+                       [('soilTemp%d' % i, 'WN34 CH%d' % i) for i in range(1, 9)] +
+                       [('soilMoist%d' % i, 'WH51 CH%d' % i) for i in range(1, 17)] +
+                       [('leafWet%d' % i, 'WN35 CH%d' % i) for i in range(1, 9)] +
+                       [('leak_%d' % i, '%d' % i) for i in range(1, 5)] +
+                       [('pm25_%d' % i, 'CH%d' % i) for i in range(1, 5)] + [('pm2_5', 'WH45')])
+SENSOR_DESC = dict([('inTemp', 'Indoor temperature/humidity')] +
+                   [('extraTemp%d' % i, 'WN31 temperature/humidity CH%d' % i) for i in range(1, 9)] +
+                   [('soilTemp%d' % i, 'WN34 temperature probe CH%d' % i) for i in range(1, 9)] +
+                   [('soilMoist%d' % i, 'WH51 soil moisture CH%d' % i) for i in range(1, 17)] +
+                   [('leafWet%d' % i, 'WN35 leaf wetness CH%d' % i) for i in range(1, 9)] +
+                   [('leak_%d' % i, 'WH55 leak sensor %d' % i) for i in range(1, 5)] +
+                   [('pm25_%d' % i, 'WH41/WH43 PM2.5 CH%d' % i) for i in range(1, 5)] + [('pm2_5', 'WH45 air quality')])
+
+
+def _clean_label(name):
+    """A name that weewx.conf can hold as a key: no brackets, '=', '#' or quotes."""
+    return ' '.join(''.join(c for c in str(name) if c not in '[]=#"\'').split())
+
+
+def _current_labels(extras):
+    """{field: name} from the [[Channels]], [[SoilChannels]] ... sections already set."""
+    out = {}
+    for section in SENSOR_SECTIONS:
+        for label, spec in (extras.get(section) or {}).items():
+            field = (spec if isinstance(spec, (list, tuple)) else str(spec).split(','))[0].strip()
+            if field in SENSOR_DEFAULTS:
+                out[field] = label
+    return out
+
+
+def _sensors_with_data(cfg, days=30):
+    """The sensor fields with readings in the last 30 days, in the main database or the skin's
+    own; None if neither can be read."""
+    try:
+        import time
+        import weewx.manager
+    except ImportError:
+        return None
+    found, read_any = set(), False
+    for binding in ('wx_binding', BINDING):
+        if binding not in cfg.get('DataBindings', {}):
+            continue
+        try:
+            mgr = weewx.manager.open_manager_with_config(cfg, binding)
+        except Exception:
+            continue
+        try:
+            read_any = True
+            last = mgr.lastGoodStamp() or time.time()
+            for f in SENSOR_FIELDS:
+                if f in found or f not in mgr.sqlkeys:
+                    continue
+                row = mgr.getSql("SELECT 1 FROM %s WHERE %s IS NOT NULL AND dateTime > ? LIMIT 1"
+                                 % (mgr.table_name, f), (last - days * 86400,))
+                if row:
+                    found.add(f)
+        except Exception:
+            pass
+        finally:
+            mgr.close()
+    return [f for f in SENSOR_FIELDS if f in found] if read_any else None
 
 
 def _ask_text(prompt, default):

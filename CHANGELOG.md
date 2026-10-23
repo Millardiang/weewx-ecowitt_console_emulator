@@ -45,6 +45,12 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   with when it happened. Worked out from the daily summaries, so it takes milliseconds
   even with years of data, and added to `ecowitt.json`. `records` in `skin.conf`.
 - The new text is in all 29 translations.
+- The installer can name your sensors: it lists the temperature/humidity channels and
+  the soil, leaf, leak and PM sensors with readings in the database, and asks for a name
+  for each (Porch, Attic, Freezer ...), shown on the dashboard instead of "WN31 CH1".
+  Naming a WN34 probe adds it to the channels the CH button steps through. Reinstalling
+  offers the current names; for unattended installs, `--label=FIELD=NAME`. The names go
+  in weewx.conf (`[[[[Channels]]]]`, `[[[[SoilChannels]]]]` ...).
 
 ### Changed
 - The station title is now the largest text in the header in every layout, centred

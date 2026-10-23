@@ -242,6 +242,44 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
 Then open `http://<your-weewx-host>/weewx/console/` (or wherever your
 `public_html` is served) on the tablet.
 
+### Naming sensors
+
+The temperature/humidity channels and the soil, leaf, leak and PM sensors can show
+your own names (Porch, Attic, Freezer, Veg patch ...) instead of "WN31 CH1". At the
+end of the install, the installer lists the ones with readings in the database in
+the last 30 days and offers to name them:
+
+```
+The dashboard can show your own names for your sensors (Porch, Attic, Freezer ...)
+instead of "WN31 CH1". Found: Indoor, WN31 CH1, WN31 CH2, WN34 CH1, WH51 CH1
+Name them now (yes/no) [no]: y
+Press Enter to keep the name shown in [brackets].
+  Indoor temperature/humidity (inTemp) [Indoor]:
+  WN31 temperature/humidity CH1 (extraTemp1) [WN31 CH1]: Porch
+  WN31 temperature/humidity CH2 (extraTemp2) [WN31 CH2]: Attic
+  WN34 temperature probe CH1 (soilTemp1), shown with the CH button if named [not shown]: Freezer
+  WH51 soil moisture CH1 (soilMoist1) [WH51 CH1]: Veg patch
+```
+
+A WN34 probe isn't among the channels the **CH** button steps through unless you
+name it. Install again at any time to change the names: the current ones are offered
+as the defaults. For unattended installs, give `--label=FIELD=NAME` once per sensor:
+
+```bash
+weectl extension install weewx-ecowitt_console_emulator.zip --yes \
+    --label=extraTemp1=Porch --label=extraTemp2=Attic --label=soilTemp1=Freezer
+```
+
+The names are written to `weewx.conf` under
+`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]`, in `[[[[Channels]]]]`,
+`[[[[SoilChannels]]]]`, `[[[[LeafChannels]]]]`, `[[[[LeakChannels]]]]` and
+`[[[[PMChannels]]]]`, where they can also be edited by hand
+(`name = temperature field, humidity field, sensor id` for channels,
+`name = field, sensor id` for the others). A new section lists every sensor of its
+kind, so ones you add later still appear; a section you've already set up is edited
+in place, keeping its order, any entries you added and any you left out. Restart
+WeeWX after editing by hand.
+
 ### Live data from the gateway's MQTT
 
 Ecowitt gateways and consoles with MQTT (GW1200, GW2000 and GW3000 so far, with
