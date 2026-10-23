@@ -142,15 +142,20 @@ def _default_sensors():
 
     (id, label, battery field, signal field, battery kind)
     kind: 'binary' (0 = OK, 1 = low), 'level' (0-5, 6 = DC, low <= 1),
-          'volt:<low>' (a voltage, low below <low> volts)
+          'volt:<low>' (a voltage, low below <low> volts), or two joined by '|' for a
+          sensor the driver reports either way (the page uses the first that fits)
+    battery field: 'a|b' tries a, then b
     """
     s = [('ws90', 'WS90 array', 'ws90_batt', 'ws90_sig', 'volt:2.4'),
          ('ws85', 'WS85 array', 'ws85_batt', 'ws85_sig', 'volt:2.4'),
          ('ws80', 'WS80 array', 'ws80_batt', 'ws80_sig', 'volt:2.4'),
          ('wh69', 'WS69 array', 'wh69_batt', 'wh69_sig', 'binary'),
          ('wh65', 'WH65 array', 'outTempBatteryStatus', None, 'binary'),
-         ('wh68', 'WH68 anemometer', 'wh68_batt', 'wh68_sig', 'binary'),
-         ('wh40', 'WH40 rain gauge', 'wh40_batt', 'wh40_sig', 'level'),
+         # WS68/WH68: one AA cell (with solar). The driver gives a flag over the HTTP API and
+         # volts over the TCP API (and from MQTT), and ws68_batt (volts) when it is the wind array
+         ('wh68', 'WS68/WH68 anemometer', 'ws68_batt|wh68_batt', 'wh68_sig', 'binary|volt:1.2'),
+         # WH40: one AA cell; a level 0-5 over the HTTP API, volts over the TCP API
+         ('wh40', 'WH40 rain gauge', 'wh40_batt', 'wh40_sig', 'level|volt:1.2'),
          ('wn20', 'WN20 rain gauge', 'wn20_batt', 'wn20_sig', 'level'),
          ('wh25', 'WH25/WN32P indoor', 'wh25_batt', 'wh25_sig', 'binary'),
          ('wh26', 'WH26/WN32 outdoor', 'wh26_batt', 'wh26_sig', 'binary'),
@@ -1157,9 +1162,9 @@ class EcowittConsoleEmulatorArchive(StdService):
 # Keys not listed (PASSKEY, stationtype, heap ...) are left out of live.json.
 #
 # Battery fields are passed on as they arrive: binary (0 = OK), level (0-5) or
-# volts, which matches the dashboard's sensor list except for the WH40, WN20
-# and WH68, whose batteries the gateway sends in volts where the driver gives a
-# level; those three are left out. MQTT carries no signal strengths.
+# volts. The dashboard reads the WH68 and WH40 either way; the WN20's, which
+# the gateway sends in volts where the driver gives a level, is left out.
+# MQTT carries no signal strengths.
 
 _T, _H, _P, _S, _R, _RR, _D = ('group_temperature', 'group_percent', 'group_pressure', 'group_speed',
                                'group_rain', 'group_rainrate', 'group_direction')
@@ -1243,7 +1248,8 @@ def _gw_map():
     # batteries
     for key, fields in (('wh65batt', 'outTempBatteryStatus'), ('wh25batt', ('wh25_batt', 'inTempBatteryStatus')),
                         ('wh26batt', 'wh26_batt'), ('wh57batt', 'lightning_Batt'), ('co2_batt', 'co2_Batt'),
-                        ('wh80batt', 'ws80_batt'), ('wh85batt', 'ws85_batt'), ('wh90batt', 'ws90_batt'),
+                        ('wh80batt', 'ws80_batt'), ('wh68batt', 'wh68_batt'), ('wh40batt', 'wh40_batt'),
+                        ('wh85batt', 'ws85_batt'), ('wh90batt', 'ws90_batt'),
                         ('wh69batt', 'wh69_batt'), ('bgtbatt', 'bgtbatt'), ('console_batt', 'console_batt'),
                         ('ws85cap_volt', 'ws85cap_volt'), ('ws90cap_volt', 'ws90cap_volt')):
         add(key, fields)

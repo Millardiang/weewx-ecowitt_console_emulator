@@ -290,8 +290,9 @@ Dew point and feels-like are worked out when the gateway doesn't send them. Each
 message replaces the previous one, so a sensor that goes quiet drops out.
 
 Two things only loop packets have: **signal strengths** (MQTT carries none), and
-the **WH40, WN20 and WH68** batteries, which the gateway sends in volts where the
-dashboard expects a level. To keep those, use `source = both`: loop packets as
+the **WN20** battery, which the gateway sends in volts where the dashboard expects
+a level. (The WH68 and WH40 batteries are read in volts or as the driver gives
+them.) To keep those, use `source = both`: loop packets as
 before, with the MQTT readings on top while they are fresh (`mqtt_stale`, default
 120 seconds), so the faster MQTT values win and the loop fills in the rest.
 
@@ -408,7 +409,12 @@ The Forecast button is hidden if weewx.conf has no station position, or with
 * `[[Channels]]` – which T&H channels the CH button cycles through, their names and
   sensor ids, e.g. `Greenhouse = extraTemp1, extraHumid1, wn31_ch1`
 * `[[SoilChannels]]`, `[[LeafChannels]]`, `[[LeakChannels]]`, `[[PMChannels]]` – custom labels/fields
-* `[[Sensors]]` – battery/signal list; `kind` is `binary` (0 = OK), `level` (0–5, 6 = DC) or `volt:<low volts>`
+* `[[Sensors]]` – battery/signal list; `kind` is `binary` (0 = OK), `level` (0–5, 6 = DC) or `volt:<low volts>`,
+  or two of them joined by `|` for a sensor whose battery can arrive either way (the first that fits the
+  value is used: `binary` for 0 or 1, `level` for a whole number 0–6, otherwise volts). The WS68/WH68 uses
+  `binary|volt:1.2` and the WH40 `level|volt:1.2`, because weewx-EcowittGateway gives them as a flag or
+  level over the gateway's HTTP API but in volts over its TCP API. The battery field can also list
+  fields to try in turn, e.g. `ws68_batt|wh68_batt`
 
 ### Options in the address
 

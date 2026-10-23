@@ -401,9 +401,20 @@
   };
 
   // ---------------------------------------------------------------- batteries / signal
+  // kind: binary (0 = OK, 1 = low), level (0-5, 6 = DC) or volt:<low volts>. Two kinds
+  // joined by '|' (e.g. binary|volt:1.2) are for sensors a driver reports either way (the
+  // WH68 is a flag over the HTTP API and volts over the TCP API): the first kind the value
+  // fits is used: binary for 0 or 1, level for a whole number 0-6, otherwise volts.
   function battState(kind, v) {
     if (!isNum(v)) return null;
     kind = String(kind || 'binary');
+    if (kind.indexOf('|') >= 0) {
+      kind = kind.split('|').filter(function (k) {
+        k = k.trim();
+        return k === 'binary' ? v === 0 || v === 1 : k === 'level' ? v === Math.round(v) && v >= 0 && v <= 6 : true;
+      })[0] || 'binary';
+      kind = kind.trim();
+    }
     if (kind.indexOf('volt') === 0) {
       var low = parseFloat(kind.split(':')[1]) || 1.2;
       var lo = low * 0.92, hi = low * 1.33;
@@ -425,11 +436,18 @@
   function sigFor(id) {
     var s = id && sensorById(id);
     if (!s) return '';
-    var b = battState(s.kind, lv(s.batt)), sig = lv(s.sig);
+    var b = battState(s.kind, battVal(s)), sig = lv(s.sig);
     return (b && b.low ? I.battery(b.level, true, 11) : '') + (isNum(sig) ? I.signal(sig, 20) : '');
   }
+  // A sensor's battery reading. 'a|b' lists fields to try in turn (the WS68's own voltage
+  // when the driver gives it, else its battery flag).
+  function battVal(s) {
+    var f = String(s.batt || '').split('|');
+    for (var i = 0; i < f.length; i++) { var v = lv(f[i].trim()); if (isNum(v)) return v; }
+    return null;
+  }
   function lowSensors() {
-    return (S.cfg.sensors || []).filter(function (s) { var b = battState(s.kind, lv(s.batt)); return b && b.low; });
+    return (S.cfg.sensors || []).filter(function (s) { var b = battState(s.kind, battVal(s)); return b && b.low; });
   }
 
   // ---------------------------------------------------------------- header / clock
@@ -1005,7 +1023,7 @@
   }
   function showSensors() {
     var rows = (S.cfg.sensors || []).map(function (s) {
-      var b = battState(s.kind, lv(s.batt)), sig = lv(s.sig);
+      var b = battState(s.kind, battVal(s)), sig = lv(s.sig);
       if (!b && !isNum(sig)) return '';
       return '<tr><td>' + esc(tl(s.label)) + '</td><td>' + (b ? I.battery(b.level, b.low, 12) : '') + '</td><td>' + (b ? esc(b.txt) : '--') +
         '</td><td title="' + (isNum(sig) ? sig + '/4' : '') + '">' + (isNum(sig) ? I.signal(sig, 26) : '--') + '</td></tr>';

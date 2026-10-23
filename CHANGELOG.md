@@ -18,7 +18,7 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   readings are renamed to weewx-EcowittGateway's fields and converted to METRICWX; the
   pass key and device details are left out. Dew point and feels-like are worked out
   when the gateway doesn't send them. `source = both` keeps loop packets too (for
-  signal strengths and the WH40/WN20/WH68 batteries), with MQTT readings on top while
+  signal strengths and the WN20 battery), with MQTT readings on top while
   they are fresh. The subscriber is built in, so nothing else needs installing.
 - The installer offers **mqtt** as a live-data source (also without
   weewx-EcowittGateway) and asks for the broker and topic; for unattended installs,
@@ -50,6 +50,17 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 - The station title is now the largest text in the header in every layout, centred
   between the status chips and the clock; the clock is a little smaller and the date
   dimmer. Long names are made smaller to fit before they are cut short.
+
+### Fixed
+- The WS68/WH68 anemometer showed a low battery whenever its battery came as a voltage
+  (weewx-EcowittGateway over the gateway's TCP API, or MQTT): it was read as a flag, so
+  any reading other than 0, such as a healthy 1.88 V, counted as low. It is now read
+  either way: 0/1 as a flag, anything else as volts, low below 1.2 V (one AA cell). The
+  WS68's own voltage (`ws68_batt`) is shown when the driver gives it. The WH40 rain gauge
+  had the same problem with its 0–5 level and is read the same way (low below 1.2 V).
+  Battery kinds can now be joined by `|` (`binary|volt:1.2`, `level|volt:1.2`) and a
+  battery field can list fields to try in turn (`ws68_batt|wh68_batt`).
+- MQTT: the WH68 and WH40 batteries are now passed on (they were left out).
 
 ## [1.1.2] – 2026-10-20
 
