@@ -140,7 +140,7 @@ hold the piezo gauge, and the dashboard treats them that way.
 ## Install
 
 ```bash
-weectl extension install weewx-ecowitt_console_emulator.zip
+weectl extension install https://github.com/Millardiang/weewx-ecowitt_console_emulator/archive/refs/heads/main.zip
 sudo systemctl restart weewx
 ```
 
