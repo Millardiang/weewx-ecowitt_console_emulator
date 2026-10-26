@@ -5,9 +5,9 @@ All notable changes to weewx-ecowitt_console_emulator are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
-## [Unreleased]
+## [Released]
 
-## [2.0.0] – in development
+## [2.0.0]
 
 ### Added
 - Live data can come from the gateway's own MQTT messages. Gateways and consoles with
