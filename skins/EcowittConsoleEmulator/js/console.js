@@ -402,9 +402,10 @@
 
   // ---------------------------------------------------------------- batteries / signal
   // kind: binary (0 = OK, 1 = low), level (0-5, 6 = DC) or volt:<low volts>. Two kinds
-  // joined by '|' (e.g. binary|volt:1.2) are for sensors a driver reports either way (the
-  // WH68 is a flag over the HTTP API and volts over the TCP API): the first kind the value
-  // fits is used: binary for 0 or 1, level for a whole number 0-6, otherwise volts.
+  // joined by '|' (e.g. binary|level|volt:1.2) are for sensors a driver reports more than one
+  // way (the WH68 is a flag or a 0-5 level over the HTTP API and volts over the TCP API): the
+  // first kind the value fits is used: binary for 0 or 1, level for a whole number 0-6,
+  // otherwise volts.
   function battState(kind, v) {
     if (!isNum(v)) return null;
     kind = String(kind || 'binary');

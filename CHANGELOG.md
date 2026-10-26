@@ -67,6 +67,12 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
   Battery kinds can now be joined by `|` (`binary|volt:1.2`, `level|volt:1.2`) and a
   battery field can list fields to try in turn (`ws68_batt|wh68_batt`).
 - MQTT: the WH68 and WH40 batteries are now passed on (they were left out).
+- The WS68/WH68 anemometer showed its battery as 5.00 V when its voltage (`ws68_batt`)
+  wasn't in the live data, for example with weewx-EcowittGateway 1.1.1, or with a WS68
+  and a WS80 both paired. The panel then fell back to `wh68_batt`, which over the gateway's
+  HTTP API is a level 0–5 (5 = full), not a flag, and read the 5 as volts. Its battery
+  kind is now `binary|level|volt:1.2`, so that level shows as 5/5. A real voltage, from
+  `ws68_batt` (weewx-EcowittGateway 1.2.0 or later) or the TCP API, still shows in volts.
 
 ## [1.1.2] – 2026-10-20
 

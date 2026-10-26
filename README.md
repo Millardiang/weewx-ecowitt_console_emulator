@@ -140,7 +140,7 @@ hold the piezo gauge, and the dashboard treats them that way.
 ## Install
 
 ```bash
-weectl extension install https://github.com/Millardiang/weewx-ecowitt_console_emulator/archive/refs/heads/main.zip
+weectl extension install weewx-ecowitt_console_emulator.zip
 sudo systemctl restart weewx
 ```
 
@@ -450,8 +450,8 @@ The Forecast button is hidden if weewx.conf has no station position, or with
 * `[[Sensors]]` – battery/signal list; `kind` is `binary` (0 = OK), `level` (0–5, 6 = DC) or `volt:<low volts>`,
   or two of them joined by `|` for a sensor whose battery can arrive either way (the first that fits the
   value is used: `binary` for 0 or 1, `level` for a whole number 0–6, otherwise volts). The WS68/WH68 uses
-  `binary|volt:1.2` and the WH40 `level|volt:1.2`, because weewx-EcowittGateway gives them as a flag or
-  level over the gateway's HTTP API but in volts over its TCP API. The battery field can also list
+  `binary|level|volt:1.2` and the WH40 `level|volt:1.2`, because weewx-EcowittGateway gives them as a flag
+  or level over the gateway's HTTP API but in volts over its TCP API. The battery field can also list
   fields to try in turn, e.g. `ws68_batt|wh68_batt`
 
 ### Options in the address
