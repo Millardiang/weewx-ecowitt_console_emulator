@@ -151,9 +151,10 @@ def _default_sensors():
          ('ws80', 'WS80 array', 'ws80_batt', 'ws80_sig', 'volt:2.4'),
          ('wh69', 'WS69 array', 'wh69_batt', 'wh69_sig', 'binary'),
          ('wh65', 'WH65 array', 'outTempBatteryStatus', None, 'binary'),
-         # WS68/WH68: one AA cell (with solar). The driver gives a flag over the HTTP API and
-         # volts over the TCP API (and from MQTT), and ws68_batt (volts) when it is the wind array
-         ('wh68', 'WS68/WH68 anemometer', 'ws68_batt|wh68_batt', 'wh68_sig', 'binary|volt:1.2'),
+         # WS68/WH68: one AA cell (with solar). wh68_batt is a level 0-5 over the HTTP API (some
+         # gateways send a 0/1 flag) and volts over the TCP API (and from MQTT); ws68_batt is its
+         # voltage, given by weewx-EcowittGateway 1.2.0 or later when it is the wind array
+         ('wh68', 'WS68/WH68 anemometer', 'ws68_batt|wh68_batt', 'wh68_sig', 'binary|level|volt:1.2'),
          # WH40: one AA cell; a level 0-5 over the HTTP API, volts over the TCP API
          ('wh40', 'WH40 rain gauge', 'wh40_batt', 'wh40_sig', 'level|volt:1.2'),
          ('wn20', 'WN20 rain gauge', 'wn20_batt', 'wn20_sig', 'level'),
