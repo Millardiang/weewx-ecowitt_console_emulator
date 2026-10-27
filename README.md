@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 2.0.0
+# Version 2.0.1
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
