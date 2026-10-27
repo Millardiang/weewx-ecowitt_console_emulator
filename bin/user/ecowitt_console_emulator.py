@@ -67,7 +67,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -155,8 +155,9 @@ def _default_sensors():
          # gateways send a 0/1 flag) and volts over the TCP API (and from MQTT); ws68_batt is its
          # voltage, given by weewx-EcowittGateway 1.2.0 or later when it is the wind array
          ('wh68', 'WS68/WH68 anemometer', 'ws68_batt|wh68_batt', 'wh68_sig', 'binary|level|volt:1.2'),
-         # WH40: one AA cell; a level 0-5 over the HTTP API, volts over the TCP API
-         ('wh40', 'WH40 rain gauge', 'wh40_batt', 'wh40_sig', 'level|volt:1.2'),
+         # WH40: one AA cell. wh40_batt is a level 0-5 over the HTTP API and volts over the TCP API
+         # (and from MQTT); weewx-EcowittGateway gives its voltage as rainBatteryStatus either way
+         ('wh40', 'WH40 rain gauge', 'rainBatteryStatus|wh40_batt', 'wh40_sig', 'level|volt:1.2'),
          ('wn20', 'WN20 rain gauge', 'wn20_batt', 'wn20_sig', 'level'),
          ('wh25', 'WH25/WN32P indoor', 'wh25_batt', 'wh25_sig', 'binary'),
          ('wh26', 'WH26/WN32 outdoor', 'wh26_batt', 'wh26_sig', 'binary'),

@@ -60,7 +60,7 @@ import sys
 
 from weecfg.extension import ExtensionInstaller
 
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 REPORT = 'EcowittConsoleEmulatorReport'
 RAIN_CHOICES = ('tipping', 'piezo', 'both')
 LIVE_CHOICES = ('driver', 'skin', 'mqtt')

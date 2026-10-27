@@ -452,7 +452,9 @@ The Forecast button is hidden if weewx.conf has no station position, or with
   value is used: `binary` for 0 or 1, `level` for a whole number 0–6, otherwise volts). The WS68/WH68 uses
   `binary|level|volt:1.2` and the WH40 `level|volt:1.2`, because weewx-EcowittGateway gives them as a flag
   or level over the gateway's HTTP API but in volts over its TCP API. The battery field can also list
-  fields to try in turn, e.g. `ws68_batt|wh68_batt`
+  fields to try in turn: the WS68/WH68 uses `ws68_batt|wh68_batt` and the WH40
+  `rainBatteryStatus|wh40_batt`, so each shows its voltage when the driver gives it and its level
+  otherwise
 
 ### Options in the address
 

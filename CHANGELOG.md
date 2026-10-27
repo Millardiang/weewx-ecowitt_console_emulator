@@ -7,6 +7,15 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Released]
 
+## [2.0.1] – 2026-10-27
+
+### Fixed
+- The WH40 rain gauge's battery showed as a level (e.g. 5/5) in the Sensors panel with
+  weewx-EcowittGateway over the gateway's HTTP API, although the driver also gives its
+  voltage. The panel now reads `rainBatteryStatus` (the WH40 voltage) first and falls back
+  to `wh40_batt`, so it shows volts (e.g. 1.60 V), the same as the WS68. Over MQTT, which
+  has no `rainBatteryStatus`, `wh40_batt` is already in volts.
+
 ## [2.0.0]
 
 ### Added
