@@ -31,7 +31,7 @@
     arch: null, alm: null, cfg: null, opts: null,
     live: null, liveFails: 0,
     windBuf: [], windAngle: null, windAvgAngle: null,
-    chIdx: 0, groundIdx: 0, pmIdx: 0, rainSrc: null,
+    chIdx: 0, groundIdx: 0, groundTimer: null, pmIdx: 0, rainSrc: null,
     baroMode: null, wakeLock: null
   };
   var NS = 'http://www.w3.org/2000/svg';
@@ -641,7 +641,8 @@
       var label = String(g.e.label).replace(/^(WH51|WH52|WN35)\s+/, '');
       el.innerHTML = sigFor(g.e.sensor) +
         '<span>' + esc(tl(label)) + ' ' + esc(g.kind) + ': ' + fmt(pick(g.e.field, g.e.value), 0) + ' %</span>';
-      el.onclick = function () { S.groundIdx = (S.groundIdx + 1) % gl.length; renderTopRight(); };
+      // a tap steps on now and restarts the auto-rotate interval, so it doesn't jump straight on again
+      el.onclick = function () { S.groundIdx = (S.groundIdx + 1) % gl.length; renderTopRight(); scheduleGroundRotate(); };
     } else el.innerHTML = '';
 
     var last = pick(fm.lightning_time, a.lightning.last), dist = pick(fm.lightning_dist, a.lightning.dist),
@@ -649,6 +650,28 @@
     $('light').innerHTML = (isNum(last) || isNum(dist) || isNum(cnt)) ?
       sigFor('wh57') + I.bolt() + '<div class="lines"><span>' + ago(last) + '</span><span>' + esc(_t('Dis')) + ': ' + fmt(cv.dist(dist), 0) + ' ' + esc(lbl.dist()) +
       '&nbsp;&nbsp;' + esc(_t('Cnt')) + ': ' + fmt(cnt, 0) + '</span></div>' : '';
+  }
+
+  // Auto-rotate of the soil/leaf line: seconds between steps, 0 = off. The tablet's
+  // Settings choice (opts.soilRotate) wins over skin.conf's soil_rotate.
+  var ROTATE_CHOICES = [0, 5, 10, 15, 30];
+  function groundRotateSecs() {
+    var v = S.opts && S.opts.soilRotate != null ? S.opts.soilRotate : S.cfg.soil_rotate;
+    v = parseInt(v, 10);
+    return v > 0 ? Math.max(2, v) : 0;
+  }
+  function scheduleGroundRotate() {
+    if (S.groundTimer) clearInterval(S.groundTimer);
+    S.groundTimer = null;
+    var secs = groundRotateSecs();
+    if (!secs) return;
+    S.groundTimer = setInterval(function () {
+      if (document.visibilityState === 'hidden') return;
+      var n = groundList().length;
+      if (n < 2) return;
+      S.groundIdx = (S.groundIdx + 1) % n;
+      safe(renderTopRight, 'soil/lightning');
+    }, secs * 1000);
   }
 
   // ---------------------------------------------------------------- channel T&H
@@ -1047,6 +1070,12 @@
       return '<option value="' + k + '"' + (k === S.lang ? ' selected' : '') + '>' + esc(LANGS[k][0]) + '</option>';
     }).join('') + '</select>';
     var row = function (k, ctl) { return '<div class="opt"><span>' + esc(_t(k)) + '</span>' + ctl + '</div>'; };
+    // soil/leaf auto-rotate: the usual choices, plus skin.conf's value if it's another
+    var rotNow = groundRotateSecs(), rotList = ROTATE_CHOICES.slice();
+    if (rotList.indexOf(rotNow) < 0) { rotList.push(rotNow); rotList.sort(function (x, y) { return x - y; }); }
+    var rotate = seg('soilRotate', rotList.map(function (s) {
+      return [String(s), s ? (s % 60 ? _t('{0} s', s) : _t('{0} min', s / 60)) : 'Off'];
+    }), rotNow);
     var html = row('Language', langs) + row('Units', units) +
       row('Layout', seg('layout', [['auto', 'Auto'], ['landscape', 'Landscape'], ['portrait', 'Portrait'], ['square', 'Square'], ['phone', 'Phone']], S.opts.layout || 'auto')) +
       row('Theme', seg('theme', [['auto', 'Auto'], ['navy', 'Navy'], ['black', 'Black'], ['light', 'Light']], S.opts.theme)) +
@@ -1054,6 +1083,7 @@
       row('Show seconds', seg('seconds', [['true', 'On'], ['false', 'Off']], S.opts.seconds)) +
       row('Keep screen awake', seg('wake', [['true', 'On'], ['false', 'Off']], S.opts.wake)) +
       row('Full screen on touch', seg('fullscreen', [['true', 'On'], ['false', 'Off']], S.opts.fullscreen !== false)) +
+      (groundList().length > 1 ? row('Rotate soil / leaf channels', rotate) : '') +
       '<div class="meta">' + esc(S.cfg.title || a.station) + (a.hardware ? ' · ' + esc(a.hardware) : '') + '<br>' +
       esc(_t('Archive record')) + ': ' + dtf({ day: 'numeric', month: 'short', year: 'numeric' }).format(W(a.archiveTime)) + ' ' + hhmm(a.archiveTime) +
       ' (' + esc(_t('every {0} min', Math.round(a.interval / 60))) + ')<br>' +
@@ -1070,7 +1100,9 @@
         var btn = ev.target.closest('button'); if (!btn) return;
         var k = sg.getAttribute('data-opt'), v = btn.getAttribute('data-v');
         if (v === 'true' || v === 'false') v = v === 'true';
+        if (k === 'soilRotate') v = parseInt(v, 10) || 0;
         S.opts[k] = v; lsSet('opts', S.opts); applyOpts(); showSettings(); renderAll(); tickClock();
+        if (k === 'soilRotate') scheduleGroundRotate();
       };
     });
   }
@@ -1870,6 +1902,7 @@
     var changed = false;
     if (q.theme && ['auto', 'navy', 'black', 'light'].indexOf(q.theme) >= 0) { S.opts.theme = q.theme; changed = true; }
     if (q.layout && (q.layout === 'auto' || STAGES[q.layout])) { S.opts.layout = q.layout; changed = true; }
+    if (q.soil_rotate != null && /^\d+$/.test(q.soil_rotate)) { S.opts.soilRotate = parseInt(q.soil_rotate, 10); changed = true; }
     if (changed) lsSet('opts', S.opts);
   }
   function init() {
@@ -1913,6 +1946,7 @@
     // labels are fitted to their places by measuring them: again once the web font is in
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { renderAll(); });
     setInterval(tickClock, 1000);
+    scheduleGroundRotate();
     setInterval(fetchArchive, Math.max(15, S.cfg.archive_poll || 60) * 1000);
     setInterval(function () { safe(renderSky, 'sky'); safe(renderTopRight, 'soil/lightning'); safe(renderBaro, 'baro'); safe(checkAutoTheme, 'theme'); }, 60000);
     fetchLive().then(scheduleLive, scheduleLive);

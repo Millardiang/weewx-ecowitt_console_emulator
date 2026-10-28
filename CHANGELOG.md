@@ -5,7 +5,18 @@ All notable changes to weewx-ecowitt_console_emulator are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
+## [2.0.2] – 2026-10-28
+
 ## [Released]
+
+### Added
+- The soil moisture / leaf wetness line can step through its channels by itself.
+  Settings → *Rotate soil / leaf channels* (Off, 5, 10, 15 or 30 s, shown when more
+  than one channel reports) is kept in the browser; the default comes from the new
+  `skin.conf` `[Extras]` option `soil_rotate` (seconds, 0 = off, the default), and
+  `?soil_rotate=` in the page's address sets it too. Tapping the line still steps on
+  at once and restarts the interval. Rotation pauses while the page is hidden.
+
 
 ## [2.0.1] – 2026-10-27
 

@@ -389,6 +389,8 @@ def build_dashboard_config(skin_dict, config_dict=None):
         # VPD reading and chart (the installer asks; true unless turned off)
         'show_vpd': to_bool(extras.get('show_vpd', True)),
         'baro_mode': str(extras.get('baro_mode', 'REL')).upper(),
+        # Seconds between automatic steps to the next soil/leaf channel (0 = off)
+        'soil_rotate': max(0, to_int(extras.get('soil_rotate', 0)) or 0),
         # Windy radar button: {lat}, {lon} and {zoom} are filled in by the page
         'windy_radar': to_bool(extras.get('windy_radar', True)),
         'windy_zoom': to_int(extras.get('windy_zoom', 8)),

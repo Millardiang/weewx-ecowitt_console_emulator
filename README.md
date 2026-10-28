@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 2.0.1
+# Version 2.0.2
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
@@ -390,13 +390,18 @@ Share → "Add to Home Screen".
 | CH | Switches the second pair of rings between the temperature/humidity channels that are reporting: Indoor, then each WN31 (CH1–CH8). Greyed out when only one channel reports |
 | Battery | Battery and signal of every sensor that reports them |
 | Refresh | Reload data now |
-| Settings | Language, units, layout, theme, 12/24 h clock, seconds, keep awake, full screen on touch, data status |
+| Settings | Language, units, layout, theme, 12/24 h clock, seconds, keep awake, full screen on touch, soil/leaf auto-rotate (when more than one channel reports), data status |
 
 Tapping works too: the channel gauges cycle channels, the soil/leaf line cycles
 through every soil-moisture and leaf-wetness channel, the PM2.5 readout cycles PM
 sensors, the barometer reading switches between REL and ABS, with `rain_sensors = auto`
 and both gauges reporting, the tag under the rain icon switches between them,
 and the red battery icon in the header opens the sensor list.
+
+With more than one soil-moisture or leaf-wetness channel, the soil/leaf line can
+also step through them by itself: Settings → *Rotate soil / leaf channels* (Off,
+5, 10, 15 or 30 s), or `soil_rotate` (seconds, 0 = off) in `skin.conf` `[Extras]`
+for the default. A tap still steps on at once and restarts the interval.
 
 On the wind gauge, the blue arrow is the current direction and the small grey
 arrow is the 10-minute average direction.
@@ -458,7 +463,7 @@ The Forecast button is hidden if weewx.conf has no station position, or with
 
 ### Options in the address
 
-Language, units, theme and layout can also be set in the page's address, for
+Language, units, theme, layout and soil/leaf auto-rotate can also be set in the page's address, for
 screens where Settings can't be used or isn't kept (a page cast to a Google Nest
 Hub, a kiosk):
 
@@ -472,6 +477,7 @@ http://<your-weewx-host>/weewx/console/?lang=fr&units=metric&theme=auto&layout=l
 | `units` | `uk`, `us`, `metric`, `scandi`, `canada`, `icao` |
 | `theme` | `auto`, `navy`, `black`, `light` |
 | `layout` | `auto`, `landscape`, `portrait`, `square`, `phone` |
+| `soil_rotate` | seconds between soil/leaf channels, `0` = off |
 
 They are applied as if chosen in Settings each time the page is opened with them;
 values that aren't recognised are ignored.
