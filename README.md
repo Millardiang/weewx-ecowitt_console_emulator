@@ -144,15 +144,15 @@ weectl extension install https://github.com/Millardiang/weewx-ecowitt_console_em
 sudo systemctl restart weewx
 ```
 
-The installer first asks whether Ecowitt is the station's main device:
+The installer first asks which Ecowitt device is the station's main one:
 
 ```
-Is an Ecowitt gateway or console the station's main device? If not (e.g. a Davis station with Ecowitt sensors added), give its name and the dashboard shows it.
+Which Ecowitt gateway or console is the station's main device? Answer yes to show WeeWX's hardware name, or no to enter the Ecowitt device (e.g. GW2000, GW3000, HP2560, WS3900); Settings on the dashboard shows it.
 Is Ecowitt your main device (y/n) [yes]: n
-Enter your device name: Davis Vantage Pro2
+Enter your Ecowitt device name: GW2000
 ```
 
-With **no**, the name you give is shown in Settings (⚙), on the line under the
+With **no**, the Ecowitt device you enter is shown in Settings (⚙), on the line under the
 station name, instead of WeeWX's hardware name. With **yes**, Settings keeps
 showing WeeWX's hardware name. When you install again, your previous answer is the default.
 
@@ -206,13 +206,13 @@ the skin's own `live.json` instead. If you answer `both` to the rain question
 but the driver only records one gauge, the installer says so.
 
 For unattended installs, answer on the command line (`--live=driver` only
-works when weewx-EcowittGateway is installed; `--device=ecowitt` means Ecowitt
-is the main device):
+works when weewx-EcowittGateway is installed; `--device=ecowitt` means no device
+name, so WeeWX's hardware name is shown):
 
 ```bash
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
-weectl extension install weewx-ecowitt_console_emulator.zip --yes --device="Davis Vantage Pro2"
+weectl extension install weewx-ecowitt_console_emulator.zip --yes --device=GW2000
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
     --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 ```
@@ -231,7 +231,7 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
         HTML_ROOT = public_html/console
         enable = true
         [[[Extras]]]
-            device_name = ""         # Eg Ecowitt GW3000
+            device_name = ""         # or the Ecowitt device, e.g. GW2000
             rain_sensors = both
             show_vpd = true
             live_url = live.json

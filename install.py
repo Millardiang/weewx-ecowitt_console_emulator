@@ -20,9 +20,10 @@
 # Works with any driver for an Ecowitt gateway or console. If the optional
 # weewx-EcowittGateway driver/service is installed, its settings are used too.
 #
-# During the install you are first asked whether an Ecowitt gateway or console is the
-# station's main device. If not, you're asked for its name (e.g. Davis Vantage Pro2),
-# which Settings on the dashboard then shows instead of WeeWX's hardware name.
+# During the install you are first asked which Ecowitt device is the station's main
+# one. Answer yes to keep WeeWX's hardware name, or no to enter the Ecowitt gateway or
+# console by name (e.g. GW2000, GW3000, HP2560, WS3900), which Settings on the
+# dashboard then shows instead of WeeWX's hardware name.
 #
 # Then you are asked which rain sensor(s) the station has (with
 # weewx-EcowittGateway, the default is its rain_source answer):
@@ -52,8 +53,8 @@
 # Freezer ...) shown on the dashboard instead of "WN31 CH1".
 #
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --live=driver --vpd=y
-#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --device="Davis Vantage Pro2"
-#       (--device=ecowitt: Ecowitt is the main device, so WeeWX's hardware name is shown)
+#   weectl extension install weewx-ecowitt_console_emulator.zip --yes --device=GW2000
+#       (--device=ecowitt: no device name, so WeeWX's hardware name is shown)
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --label=extraTemp1=Porch \
 #       --label=extraTemp2=Attic --label=soilTemp1=Freezer
 #   weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
@@ -168,7 +169,7 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
                 if field.strip() not in SENSOR_FIELDS or not name.strip():
                     raise ValueError("--label must be FIELD=NAME, FIELD one of: %s" % ', '.join(SENSOR_FIELDS))
                 self.label_args[field.strip()] = _clean_label(name)
-            # --device=NAME: the station's main device, if it isn't Ecowitt (--device=ecowitt if it is)
+            # --device=NAME: the station's main Ecowitt device, e.g. GW2000 (--device=ecowitt: no name)
             dev = a.split('=', 1)[1] if a.startswith('--device=') else (args[i + 1] if a == '--device' and i + 1 < len(args) else None)
             if dev is not None:
                 dev = _clean_label(dev)
@@ -206,22 +207,23 @@ class EcowittConsoleEmulatorInstaller(ExtensionInstaller):
             out("EcowittConsoleEmulator: weewx-EcowittGateway not found; live data will come from the "
                 "skin's own live.json (from loop packets or the gateway's MQTT messages)")
 
-        # --- main device: Ecowitt, or another station whose name Settings shows ----
+        # --- main device: the Ecowitt gateway or console whose name Settings shows ----
         cur_device = _clean_label(str(extras.get('device_name', '') or ''))
         device = self.device_arg
         if device is None:
             if interactive:
-                print("\nIs an Ecowitt gateway or console the station's main device? If not (e.g. a Davis "
-                      "station with Ecowitt sensors added), give its name and the dashboard shows it.")
+                print("\nWhich Ecowitt gateway or console is the station's main device? Answer yes to show "
+                      "WeeWX's hardware name, or no to enter the Ecowitt device (e.g. GW2000, GW3000, HP2560, "
+                      "WS3900); Settings on the dashboard shows it.")
                 if _ask("Is Ecowitt your main device (y/n)", 'no' if cur_device else 'yes', ('yes', 'no')) == 'no':
-                    ans = _ask_text("Enter your device name", cur_device) if cur_device \
-                        else _ask_text_required("Enter your device name")
+                    ans = _ask_text("Enter your Ecowitt device name", cur_device) if cur_device \
+                        else _ask_text_required("Enter your Ecowitt device name")
                     device = _clean_label(ans)
                 else:
                     device = ''
             else:
                 device = cur_device
-        out("EcowittConsoleEmulator: main device %s" % ("'%s'" % device if device else 'Ecowitt'))
+        out("EcowittConsoleEmulator: main device %s" % ("Ecowitt '%s'" % device if device else 'Ecowitt (WeeWX hardware name shown)'))
 
         # --- rain sensor(s): default to the driver's own answer -------------
         current = extras.get('rain_sensors')

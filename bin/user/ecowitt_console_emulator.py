@@ -378,7 +378,7 @@ def build_dashboard_config(skin_dict, config_dict=None):
         'theme_day': str(extras.get('theme_day', 'light')),
         'theme_night': str(extras.get('theme_night', 'black')),
         'title': str(extras.get('title', '')),
-        # The station's main device when it isn't Ecowitt (the installer asks); Settings
+        # The station's main Ecowitt device, e.g. GW2000 (the installer asks); Settings
         # shows it instead of WeeWX's hardware name
         'device_name': str(extras.get('device_name', '') or '').strip(),
         'links': {k: str(v) for k, v in extras.get('Links', {}).items()},

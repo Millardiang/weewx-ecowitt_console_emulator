@@ -11,11 +11,11 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ### Added
 - The installer first asks *Is Ecowitt your main device (y/n)*. With **no** it asks
-  for the device's name (e.g. Davis Vantage Pro2) and writes it to weewx.conf as
+  for the Ecowitt device's name (e.g. GW2000, GW3000, HP2560, WS3900) and writes it to weewx.conf as
   `device_name` (`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]`); Settings
   on the dashboard then shows it instead of WeeWX's hardware name. A reinstall
   offers the previous answer as the default. For unattended installs:
-  `--device="Davis Vantage Pro2"`, or `--device=ecowitt`.
+  `--device=GW2000`, or `--device=ecowitt` for no name.
 
 ### Fixed
 - The version number in the installer, the skin's Python module and `skin.conf` was
