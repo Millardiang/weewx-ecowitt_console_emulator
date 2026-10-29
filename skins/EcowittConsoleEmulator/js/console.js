@@ -1084,7 +1084,7 @@
       row('Keep screen awake', seg('wake', [['true', 'On'], ['false', 'Off']], S.opts.wake)) +
       row('Full screen on touch', seg('fullscreen', [['true', 'On'], ['false', 'Off']], S.opts.fullscreen !== false)) +
       (groundList().length > 1 ? row('Rotate soil / leaf channels', rotate) : '') +
-      '<div class="meta">' + esc(S.cfg.title || a.station) + (a.hardware ? ' · ' + esc(a.hardware) : '') + '<br>' +
+      '<div class="meta">' + esc(S.cfg.title || a.station) + ((S.cfg.device_name || a.hardware) ? ' · ' + esc(S.cfg.device_name || a.hardware) : '') + '<br>' +
       esc(_t('Archive record')) + ': ' + dtf({ day: 'numeric', month: 'short', year: 'numeric' }).format(W(a.archiveTime)) + ' ' + hhmm(a.archiveTime) +
       ' (' + esc(_t('every {0} min', Math.round(a.interval / 60))) + ')<br>' +
       esc(_t('Layout')) + ': ' + esc(_t({ landscape: 'Landscape', portrait: 'Portrait', square: 'Square', phone: 'Phone' }[S.layout] || 'Auto')) +

@@ -67,7 +67,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "2.0.1"
+VERSION = "2.0.3"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -378,6 +378,9 @@ def build_dashboard_config(skin_dict, config_dict=None):
         'theme_day': str(extras.get('theme_day', 'light')),
         'theme_night': str(extras.get('theme_night', 'black')),
         'title': str(extras.get('title', '')),
+        # The station's main device when it isn't Ecowitt (the installer asks); Settings
+        # shows it instead of WeeWX's hardware name
+        'device_name': str(extras.get('device_name', '') or '').strip(),
         'links': {k: str(v) for k, v in extras.get('Links', {}).items()},
         'clock_24h': to_bool(extras.get('clock_24h', True)),
         # Default language, as in weewx-divumwx (en, fr, de ...); the page's lang/<code>.json

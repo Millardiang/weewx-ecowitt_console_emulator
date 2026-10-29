@@ -5,9 +5,23 @@ All notable changes to weewx-ecowitt_console_emulator are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
-## [2.0.2] – 2026-10-28
-
 ## [Released]
+
+## [2.0.3] – 2026-10-29
+
+### Added
+- The installer first asks *Is Ecowitt your main device (y/n)*. With **no** it asks
+  for the device's name (e.g. Davis Vantage Pro2) and writes it to weewx.conf as
+  `device_name` (`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]`); Settings
+  on the dashboard then shows it instead of WeeWX's hardware name. A reinstall
+  offers the previous answer as the default. For unattended installs:
+  `--device="Davis Vantage Pro2"`, or `--device=ecowitt`.
+
+### Fixed
+- The version number in the installer, the skin's Python module and `skin.conf` was
+  still 2.0.1 in release 2.0.2 (shown in Settings and by `weectl extension list`).
+
+## [2.0.2] – 2026-10-28
 
 ### Added
 - The soil moisture / leaf wetness line can step through its channels by itself.

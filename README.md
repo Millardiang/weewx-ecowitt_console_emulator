@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 2.0.2
+# Version 2.0.3
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
@@ -144,7 +144,19 @@ weectl extension install https://github.com/Millardiang/weewx-ecowitt_console_em
 sudo systemctl restart weewx
 ```
 
-The installer asks which rain sensor(s) the station has:
+The installer first asks whether Ecowitt is the station's main device:
+
+```
+Is an Ecowitt gateway or console the station's main device? If not (e.g. a Davis station with Ecowitt sensors added), give its name and the dashboard shows it.
+Is Ecowitt your main device (y/n) [yes]: n
+Enter your device name: Davis Vantage Pro2
+```
+
+With **no**, the name you give is shown in Settings (⚙), on the line under the
+station name, instead of WeeWX's hardware name. With **yes**, Settings keeps
+showing WeeWX's hardware name. When you install again, your previous answer is the default.
+
+Then it asks which rain sensor(s) the station has:
 
 ```
 Which rain sensor does this station have?
@@ -194,17 +206,19 @@ the skin's own `live.json` instead. If you answer `both` to the rain question
 but the driver only records one gauge, the installer says so.
 
 For unattended installs, answer on the command line (`--live=driver` only
-works when weewx-EcowittGateway is installed):
+works when weewx-EcowittGateway is installed; `--device=ecowitt` means Ecowitt
+is the main device):
 
 ```bash
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=y
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=both --vpd=n --live=driver
+weectl extension install weewx-ecowitt_console_emulator.zip --yes --device="Davis Vantage Pro2"
 weectl extension install weewx-ecowitt_console_emulator.zip --yes --rain=piezo --vpd=y --live=mqtt \
     --mqtt-host=192.168.1.20 --mqtt-topic=ecowitt/1C6920E3A8F3 --mqtt-user=weewx --mqtt-password=secret
 ```
 
 The answers are stored in `weewx.conf` under
-`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]` (`rain_sensors`, `show_vpd`, `live_url`).
+`[StdReport][[EcowittConsoleEmulatorReport]][[[Extras]]]` (`device_name`, `rain_sensors`, `show_vpd`, `live_url`).
 Reinstalling offers your current answers as the defaults.
 
 This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
@@ -217,6 +231,7 @@ This adds (shown without weewx-EcowittGateway; with its `ecwLoop.json`,
         HTML_ROOT = public_html/console
         enable = true
         [[[Extras]]]
+            device_name = ""         # Eg Ecowitt GW3000
             rain_sensors = both
             show_vpd = true
             live_url = live.json
