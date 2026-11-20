@@ -1,5 +1,5 @@
 # weewx-ecowitt_console_emulator — an Ecowitt console emulator skin for WeeWX 5
-# Version 2.0.3
+# Version 2.1.0
 
 A full-screen dashboard for a wall or desk tablet, an Amazon Echo Show, an Apple
 HomeView or a Google Nest Hub, laid out like the Ecowitt WH2560 / HP2560 console, in a navy-blue palette: outdoor temperature
@@ -132,7 +132,7 @@ missing the dashboard works it out or leaves it out:
 | Lightning | `lightning_dist`, `lightning_disturber_count` (last strike time), `lightningcount` (today); archive `lightning_strike_count` |
 | Tipping gauge | `rain`, `rainRate`, `eventRain`, `hourRain`, `dayRain`, `weekRain`, `monthRain`, `yearRain` |
 | Piezo gauge | `p_rain` (or `hail`, which the standard database archives), `p_rainrate`, `erain_piezo`, `hrain_piezo`, `drain_piezo`, `wrain_piezo`, `mrain_piezo`, `yrain_piezo` |
-| Batteries / signal | weewx-EcowittGateway's names (other drivers: list yours in `[[Sensors]]`), e.g. `ws90_batt`, `wh40_batt`, `batteryStatus1`, `soilMoistBatt1`, `leafWetBatt1`, `lightning_Batt`, `co2_Batt`, `leak_Batt1`, `pm25_Batt1`, with `<sensor>_sig` / `<sensor>_ch<n>_sig` |
+| Batteries / signal | weewx-EcowittGateway's names (other drivers: list yours in `[[Sensors]]`): since 2.1.4 `<sensor>[_ch<n>]_batt`, `_sig` and `_volt` (e.g. `ws90_volt`, `wh40_volt`, `wh40_batt`, `wh57_batt`, `wh45_batt`, `wh51_ch1_volt`, `wn35_ch1_batt`, `wh41_ch1_batt`, `wh55_ch1_batt`), plus the standard columns it fills (`inTempBatteryStatus`, `outTempBatteryStatus`, `batteryStatus1–8`, `signal1–8`). The names earlier versions used (`lightning_Batt`, `co2_Batt`, `soilMoistBatt1`, `leafWetBatt1`, `leak_Batt1`, `pm25_Batt1`, `ldsbatt1`, `wh26_batt`, `wh31_ch1_sig` ...) are read when the new ones are missing |
 
 When weewx-EcowittGateway is set to `rain_source = piezo`, `rain`/`rainRate`
 hold the piezo gauge, and the dashboard treats them that way.
@@ -471,10 +471,17 @@ The Forecast button is hidden if weewx.conf has no station position, or with
   or two of them joined by `|` for a sensor whose battery can arrive either way (the first that fits the
   value is used: `binary` for 0 or 1, `level` for a whole number 0–6, otherwise volts). The WS68/WH68 uses
   `binary|level|volt:1.2` and the WH40 `level|volt:1.2`, because weewx-EcowittGateway gives them as a flag
-  or level over the gateway's HTTP API but in volts over its TCP API. The battery field can also list
-  fields to try in turn: the WS68/WH68 uses `ws68_batt|wh68_batt` and the WH40
-  `rainBatteryStatus|wh40_batt`, so each shows its voltage when the driver gives it and its level
-  otherwise
+  or level over the gateway's HTTP API but in volts over its TCP API. The battery and signal fields can
+  also list fields to try in turn (`a|b`): the WS68/WH68 uses `wh68_volt|ws68_batt|wh68_batt` and the WH40
+  `wh40_volt|wh40_batt|rainBatteryStatus`, so each shows its voltage when the driver gives it and its
+  level otherwise; a WN31 channel's signal is `wn31_ch1_sig|signal1|wh31_ch1_sig`. A field named
+  `*_volt` is always read as volts, and WeeWX's `*BatteryStatus` / `batteryStatus<n>` columns as
+  `binary` when they hold 0 or 1 (since weewx-EcowittGateway 2.1.4 `rainBatteryStatus` is a 0/1
+  status worked out from `wh40_batt`). A battery field marked `?`, e.g.
+  `wh26_batt|?outTempBatteryStatus`, is only read while the sensor's own signal field has a value:
+  `outTempBatteryStatus` holds the WH26's, WN32P's or WS69/WH65's battery, so the signal says whose
+  it is. A sensor with no signal field (the `WH65 array` entry) isn't listed when a sensor with a
+  signal already shows the same battery field
 
 ### Options in the address
 

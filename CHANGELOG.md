@@ -7,6 +7,51 @@ version numbers follow the rules in [VERSIONING.md](VERSIONING.md).
 
 ## [Released]
 
+## [2.1.0] – 2026-11-20
+
+### Fixed
+- The Sensors panel's built-in list (used when `skin.conf` has no `[[Sensors]]`) is
+  updated for weewx-EcowittGateway 2.1.4 and later, which names a sensor's fields
+  `<sensor>[_chN]_batt`, `_sig` and `_volt` and puts some readings in WeeWX's standard
+  columns. The current name is tried first and the earlier one after it, so older
+  versions of the driver (and other drivers) still work:
+  - **WH40**: `wh40_volt|wh40_batt|rainBatteryStatus`. `rainBatteryStatus` is now the
+    driver's 0/1 status, which was read as a level, so the WH40 showed as an empty,
+    low battery (0/5).
+  - **WH57** `wh57_batt` (was `lightning_Batt`), **WH45** `wh45_batt` (`co2_Batt`),
+    **WN34** `wn34_chN_volt|wn34_chN_batt` (`soilTempBattN`), **WN35** `wn35_chN_batt`
+    (`leafWetBattN`), **WH41** `wh41_chN_batt` (`pm25_BattN`), **WH55** `wh55_chN_batt`
+    (`leak_BattN`), **WH54** `wh54_chN_volt|wh54_chN_batt` (`ldsbattN`), **WH51**
+    `wh51_chN_volt|wh51_chN_batt` (`soilMoistBattN`), **WS90** and **WS80**
+    `ws90_volt` / `ws80_volt`, **WS68/WH68** `wh68_volt`.
+  - **WN31** signal: `wn31_chN_sig|signalN` (was `wh31_chN_sig`, which no version of
+    the driver gives); battery `wn31_chN_batt|batteryStatusN`.
+  - **WH26/WN32** outdoor: `wh26_batt|wn32p_batt`, then `outTempBatteryStatus`;
+    **WH25/WN32P** indoor: `wh25_batt|wn32_batt`, then `inTempBatteryStatus`;
+    **WS69/WH65** array (now labelled so): `wh69_batt`, then `outTempBatteryStatus`.
+- The WS90, WS85, WS80, WN34, WN35, WH54 and WH51 batteries are read as a level (0–5)
+  when that is what the driver gives (over the gateway's HTTP API) instead of as volts
+  (e.g. 5.00 V).
+- With live data from MQTT, the batteries go to the driver's current names as well as
+  the earlier ones (e.g. `wh57batt` to `wh57_batt` and `lightning_Batt`, `soilbatt1` to
+  `wh51_ch1_volt` and `soilMoistBatt1`, `wh40batt` to `wh40_volt` and `wh40_batt`, and
+  `wh65batt` to `wh69_batt` and `outTempBatteryStatus`). `wh26batt` stays `wh26_batt`:
+  MQTT has no signal strengths to tell whose `outTempBatteryStatus` it would be.
+
+### Added
+- `[[Sensors]]`: the signal field can list fields to try in turn (`a|b`), as the
+  battery field already could.
+- `[[Sensors]]`: a battery field named `*_volt` is always read as volts, and one of
+  WeeWX's `*BatteryStatus` / `batteryStatusN` columns as `binary` when it holds 0 or 1,
+  whatever the sensor's kind.
+- `[[Sensors]]`: a battery field marked `?` (e.g. `?outTempBatteryStatus`) is only read
+  while the sensor's own signal field has a value. weewx-EcowittGateway puts the WH26,
+  WN32P or WS69/WH65 battery in `outTempBatteryStatus`; the signal shows which sensor
+  is there, so a WS69 owner doesn't get a WH26 row, nor the reverse.
+- A sensor with no signal field (the built-in `WH65 array` entry, for drivers that give
+  only `outTempBatteryStatus`) isn't listed when a sensor with a signal already shows the
+  same battery field, so a WH26 or WS69 owner no longer sees the battery twice.
+
 ## [2.0.3] – 2026-10-29
 
 ### Added

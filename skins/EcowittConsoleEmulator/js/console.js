@@ -405,11 +405,16 @@
   // joined by '|' (e.g. binary|level|volt:1.2) are for sensors a driver reports more than one
   // way (the WH68 is a flag or a 0-5 level over the HTTP API and volts over the TCP API): the
   // first kind the value fits is used: binary for 0 or 1, level for a whole number 0-6,
-  // otherwise volts.
-  function battState(kind, v) {
+  // otherwise volts. field, when given, can settle it: a field named *_volt is always volts,
+  // and WeeWX's *BatteryStatus / batteryStatusN columns hold 0 (OK) or 1 (low).
+  function battState(kind, v, field) {
     if (!isNum(v)) return null;
     kind = String(kind || 'binary');
-    if (kind.indexOf('|') >= 0) {
+    if (field && /BatteryStatus\d*$/i.test(field) && (v === 0 || v === 1)) {
+      kind = 'binary';
+    } else if (field && /_volt$/i.test(field)) {
+      kind = kind.split('|').map(function (k) { return k.trim(); }).filter(function (k) { return k.indexOf('volt') === 0; })[0] || 'volt:1.2';
+    } else if (kind.indexOf('|') >= 0) {
       kind = kind.split('|').filter(function (k) {
         k = k.trim();
         return k === 'binary' ? v === 0 || v === 1 : k === 'level' ? v === Math.round(v) && v >= 0 && v <= 6 : true;
@@ -437,18 +442,54 @@
   function sigFor(id) {
     var s = id && sensorById(id);
     if (!s) return '';
-    var b = battState(s.kind, battVal(s)), sig = lv(s.sig);
+    var b = sensorBatt(s), sig = sigVal(s);
     return (b && b.low ? I.battery(b.level, true, 11) : '') + (isNum(sig) ? I.signal(sig, 20) : '');
   }
-  // A sensor's battery reading. 'a|b' lists fields to try in turn (the WS68's own voltage
-  // when the driver gives it, else its battery flag).
+  // A sensor's battery reading: {v, field}, or null. 'a|b' lists fields to try in turn (the
+  // driver's current name first, then those earlier versions and other drivers use). A field
+  // marked '?' (a WeeWX column several sensors share, e.g. outTempBatteryStatus for the
+  // WH26, WN32P and WS69) is only read while this sensor's own signal field has a value.
   function battVal(s) {
-    var f = String(s.batt || '').split('|');
-    for (var i = 0; i < f.length; i++) { var v = lv(f[i].trim()); if (isNum(v)) return v; }
+    var f = String(s.batt || '').split('|'), sig;
+    for (var i = 0; i < f.length; i++) {
+      var name = f[i].trim();
+      if (name.charAt(0) === '?') {
+        if (sig === undefined) sig = sigVal(s);
+        if (!isNum(sig)) continue;
+        name = name.slice(1).trim();
+      }
+      var v = lv(name);
+      if (isNum(v)) return { v: v, field: name };
+    }
     return null;
   }
+  // battState() of a sensor's battery
+  function sensorBatt(s) {
+    var r = battVal(s);
+    return r ? battState(s.kind, r.v, r.field) : null;
+  }
+  // A sensor's signal (0-4); 'a|b' tries a, then b (wn31_ch1_sig, or signal1 where the
+  // driver puts it in the station database's column)
+  function sigVal(s) {
+    var f = String(s.sig || '').split('|');
+    for (var i = 0; i < f.length; i++) { var v = lv(f[i].trim()); if (isNum(v)) return v; }
+    return undefined;
+  }
+  // The sensors that report, with {s, b, sig}. A sensor with no signal whose battery
+  // field another reporting sensor with a signal also shows (the WH65 entry's
+  // outTempBatteryStatus, which weewx-EcowittGateway fills from the WH26 or WS69) is
+  // left out, so the same battery isn't listed twice.
+  function sensorRows() {
+    var rows = (S.cfg.sensors || []).map(function (s) {
+      var r = battVal(s), sig = sigVal(s);
+      return { s: s, field: r ? r.field : null, b: r ? battState(s.kind, r.v, r.field) : null, sig: sig };
+    }).filter(function (x) { return x.b || isNum(x.sig); });
+    var claimed = {};
+    rows.forEach(function (x) { if (x.field && isNum(x.sig)) claimed[x.field] = true; });
+    return rows.filter(function (x) { return isNum(x.sig) || !x.field || !claimed[x.field]; });
+  }
   function lowSensors() {
-    return (S.cfg.sensors || []).filter(function (s) { var b = battState(s.kind, battVal(s)); return b && b.low; });
+    return sensorRows().filter(function (x) { return x.b && x.b.low; }).map(function (x) { return x.s; });
   }
 
   // ---------------------------------------------------------------- header / clock
@@ -1046,9 +1087,8 @@
     openOverlay('Windy radar', '<iframe class="radar-frame" src="' + esc(src) + '" title="' + esc(_t('Windy radar')) + '" referrerpolicy="no-referrer-when-downgrade"></iframe>', true);
   }
   function showSensors() {
-    var rows = (S.cfg.sensors || []).map(function (s) {
-      var b = battState(s.kind, battVal(s)), sig = lv(s.sig);
-      if (!b && !isNum(sig)) return '';
+    var rows = sensorRows().map(function (x) {
+      var s = x.s, b = x.b, sig = x.sig;
       return '<tr><td>' + esc(tl(s.label)) + '</td><td>' + (b ? I.battery(b.level, b.low, 12) : '') + '</td><td>' + (b ? esc(b.txt) : '--') +
         '</td><td title="' + (isNum(sig) ? sig + '/4' : '') + '">' + (isNum(sig) ? I.signal(sig, 26) : '--') + '</td></tr>';
     }).join('');

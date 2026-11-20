@@ -67,7 +67,7 @@ from weeutil.weeutil import (TimeSpan, archiveDaySpan, archiveWeekSpan, archiveM
 
 log = logging.getLogger(__name__)
 
-VERSION = "2.0.3"
+VERSION = "2.1.0"
 DRIVER_SECTION = 'EcowittGateway'
 DRIVER_LEGACY_SECTION = 'EcowittHttp'
 
@@ -144,33 +144,59 @@ def _default_sensors():
     kind: 'binary' (0 = OK, 1 = low), 'level' (0-5, 6 = DC, low <= 1),
           'volt:<low>' (a voltage, low below <low> volts), or two joined by '|' for a
           sensor the driver reports either way (the page uses the first that fits)
-    battery field: 'a|b' tries a, then b
+    battery and signal fields: 'a|b' tries a, then b. A field whose name ends in
+          '_volt' is always read as volts. A field marked '?' (a column several
+          sensors share) is only read while this sensor's own signal field has a value.
+
+    weewx-EcowittGateway 2.1.4 and later name a sensor's fields <sensor>[_chN]_batt,
+    _sig and _volt, and put some of them in WeeWX's standard columns when the
+    station database has them: wh25_batt -> inTempBatteryStatus, wh26_batt (or the
+    WN32P's, or the WS69/WH65's) -> outTempBatteryStatus, wn31_chN_batt ->
+    batteryStatusN, wn31_chN_sig -> signalN; rainBatteryStatus becomes a 0/1 status
+    worked out from wh40_batt, which stays. The current name comes first below and
+    the names earlier versions (and other drivers) use follow it.
     """
-    s = [('ws90', 'WS90 array', 'ws90_batt', 'ws90_sig', 'volt:2.4'),
-         ('ws85', 'WS85 array', 'ws85_batt', 'ws85_sig', 'volt:2.4'),
-         ('ws80', 'WS80 array', 'ws80_batt', 'ws80_sig', 'volt:2.4'),
-         ('wh69', 'WS69 array', 'wh69_batt', 'wh69_sig', 'binary'),
+    s = [('ws90', 'WS90 array', 'ws90_volt|ws90_batt', 'ws90_sig', 'level|volt:2.4'),
+         ('ws85', 'WS85 array', 'ws85_batt', 'ws85_sig', 'level|volt:2.4'),
+         ('ws80', 'WS80 array', 'ws80_volt|ws80_batt', 'ws80_sig', 'level|volt:2.4'),
+         # the HTTP API calls the WS69 and WH65 arrays wh69; with no WH26/WN32 the driver
+         # moves wh69_batt to outTempBatteryStatus
+         ('wh69', 'WS69/WH65 array', 'wh69_batt|?outTempBatteryStatus', 'wh69_sig', 'binary'),
+         # other drivers' outdoor array battery; not listed when a row above or below
+         # with a signal shows outTempBatteryStatus (see the page's sensorRows())
          ('wh65', 'WH65 array', 'outTempBatteryStatus', None, 'binary'),
          # WS68/WH68: one AA cell (with solar). wh68_batt is a level 0-5 over the HTTP API (some
-         # gateways send a 0/1 flag) and volts over the TCP API (and from MQTT); ws68_batt is its
-         # voltage, given by weewx-EcowittGateway 1.2.0 or later when it is the wind array
-         ('wh68', 'WS68/WH68 anemometer', 'ws68_batt|wh68_batt', 'wh68_sig', 'binary|level|volt:1.2'),
-         # WH40: one AA cell. wh40_batt is a level 0-5 over the HTTP API and volts over the TCP API
-         # (and from MQTT); weewx-EcowittGateway gives its voltage as rainBatteryStatus either way
-         ('wh40', 'WH40 rain gauge', 'rainBatteryStatus|wh40_batt', 'wh40_sig', 'level|volt:1.2'),
+         # gateways send a 0/1 flag) and volts over the TCP API (and from MQTT); wh68_volt is its
+         # voltage (weewx-EcowittGateway 2.1.4 or later), ws68_batt the name earlier versions gave
+         # it when it is the wind array
+         ('wh68', 'WS68/WH68 anemometer', 'wh68_volt|ws68_batt|wh68_batt', 'wh68_sig', 'binary|level|volt:1.2'),
+         # WH40: one AA cell. wh40_volt is its voltage; wh40_batt a level 0-5 over the HTTP API
+         # and volts over the TCP API (and from MQTT). rainBatteryStatus is the 0/1 status
+         # since weewx-EcowittGateway 2.1.4 (the voltage before), so it comes last
+         ('wh40', 'WH40 rain gauge', 'wh40_volt|wh40_batt|rainBatteryStatus', 'wh40_sig', 'level|volt:1.2'),
          ('wn20', 'WN20 rain gauge', 'wn20_batt', 'wn20_sig', 'level'),
-         ('wh25', 'WH25/WN32P indoor', 'wh25_batt', 'wh25_sig', 'binary'),
-         ('wh26', 'WH26/WN32 outdoor', 'wh26_batt', 'wh26_sig', 'binary'),
-         ('wh57', 'WH57 lightning', 'lightning_Batt', 'wh57_sig', 'level'),
-         ('wh45', 'WH45 CO2 / AQ', 'co2_Batt', 'wh45_sig', 'level'),
+         # wn32_* with the driver's wn32_indoor option
+         ('wh25', 'WH25/WN32P indoor', 'wh25_batt|wn32_batt|?inTempBatteryStatus', 'wh25_sig|wn32_sig', 'binary'),
+         # wn32p_* with the driver's wn32_outdoor option. outTempBatteryStatus is shared with
+         # the WS69/WH65, so it is only read while wh26_sig (or wn32p_sig) reports
+         ('wh26', 'WH26/WN32 outdoor', 'wh26_batt|wn32p_batt|?outTempBatteryStatus', 'wh26_sig|wn32p_sig', 'binary'),
+         ('wh57', 'WH57 lightning', 'wh57_batt|lightning_Batt', 'wh57_sig', 'level'),
+         ('wh45', 'WH45 CO2 / AQ', 'wh45_batt|co2_Batt', 'wh45_sig', 'level'),
          ('wn38', 'WN38 black globe', 'wn38_batt', 'wn38_sig', 'level')]
-    s += [('wn31_ch%d' % i, 'WN31 CH%d' % i, 'batteryStatus%d' % i, 'wh31_ch%d_sig' % i, 'binary') for i in range(1, 9)]
-    s += [('wn34_ch%d' % i, 'WN34 CH%d' % i, 'soilTempBatt%d' % i, 'wn34_ch%d_sig' % i, 'volt:1.2') for i in range(1, 9)]
-    s += [('wn35_ch%d' % i, 'WN35 CH%d' % i, 'leafWetBatt%d' % i, 'wn35_ch%d_sig' % i, 'volt:1.2') for i in range(1, 9)]
-    s += [('wh41_ch%d' % i, 'WH41 PM CH%d' % i, 'pm25_Batt%d' % i, 'wh41_ch%d_sig' % i, 'level') for i in range(1, 5)]
-    s += [('wh55_ch%d' % i, 'WH55 leak CH%d' % i, 'leak_Batt%d' % i, 'wh55_ch%d_sig' % i, 'level') for i in range(1, 5)]
-    s += [('wh54_ch%d' % i, 'WH54 depth CH%d' % i, 'ldsbatt%d' % i, 'wh54_ch%d_sig' % i, 'volt:1.2') for i in range(1, 5)]
-    s += [('wh51_ch%d' % i, 'WH51 CH%d' % i, 'soilMoistBatt%d' % i, 'wh51_ch%d_sig' % i, 'volt:1.2') for i in range(1, 17)]
+    s += [('wn31_ch%d' % i, 'WN31 CH%d' % i, 'wn31_ch{0}_batt|batteryStatus{0}'.format(i),
+           'wn31_ch{0}_sig|signal{0}|wh31_ch{0}_sig'.format(i), 'binary') for i in range(1, 9)]
+    s += [('wn34_ch%d' % i, 'WN34 CH%d' % i, 'wn34_ch{0}_volt|wn34_ch{0}_batt|soilTempBatt{0}'.format(i),
+           'wn34_ch%d_sig' % i, 'level|volt:1.2') for i in range(1, 9)]
+    s += [('wn35_ch%d' % i, 'WN35 CH%d' % i, 'wn35_ch{0}_batt|leafWetBatt{0}'.format(i),
+           'wn35_ch%d_sig' % i, 'level|volt:1.2') for i in range(1, 9)]
+    s += [('wh41_ch%d' % i, 'WH41 PM CH%d' % i, 'wh41_ch{0}_batt|pm25_Batt{0}'.format(i),
+           'wh41_ch%d_sig' % i, 'level') for i in range(1, 5)]
+    s += [('wh55_ch%d' % i, 'WH55 leak CH%d' % i, 'wh55_ch{0}_batt|leak_Batt{0}'.format(i),
+           'wh55_ch%d_sig' % i, 'level') for i in range(1, 5)]
+    s += [('wh54_ch%d' % i, 'WH54 depth CH%d' % i, 'wh54_ch{0}_volt|wh54_ch{0}_batt|ldsbatt{0}'.format(i),
+           'wh54_ch%d_sig' % i, 'level|volt:1.2') for i in range(1, 5)]
+    s += [('wh51_ch%d' % i, 'WH51 CH%d' % i, 'wh51_ch{0}_volt|wh51_ch{0}_batt|soilMoistBatt{0}'.format(i),
+           'wh51_ch%d_sig' % i, 'level|volt:1.2') for i in range(1, 17)]
     return s
 
 
@@ -1169,7 +1195,8 @@ class EcowittConsoleEmulatorArchive(StdService):
 # Keys not listed (PASSKEY, stationtype, heap ...) are left out of live.json.
 #
 # Battery fields are passed on as they arrive: binary (0 = OK), level (0-5) or
-# volts. The dashboard reads the WH68 and WH40 either way; the WN20's, which
+# volts (those in volts go to the driver's <sensor>_volt field where it has
+# one). The dashboard reads the WH68 and WH40 either way; the WN20's, which
 # the gateway sends in volts where the driver gives a level, is left out.
 # MQTT carries no signal strengths.
 
@@ -1252,24 +1279,34 @@ def _gw_map():
         add('pm25_ch%d' % i, 'pm25_%d' % i)
         add('pm25_avg_24h_ch%d' % i, 'pm25_avg_24h_ch%d' % i)
         add('leak_ch%d' % i, 'leak_%d' % i)
-    # batteries
-    for key, fields in (('wh65batt', 'outTempBatteryStatus'), ('wh25batt', ('wh25_batt', 'inTempBatteryStatus')),
-                        ('wh26batt', 'wh26_batt'), ('wh57batt', 'lightning_Batt'), ('co2_batt', 'co2_Batt'),
-                        ('wh80batt', 'ws80_batt'), ('wh68batt', 'wh68_batt'), ('wh40batt', 'wh40_batt'),
+    # batteries, under weewx-EcowittGateway 2.1.4's names (<sensor>[_chN]_batt, _volt) and
+    # the names earlier versions gave them, so [[Sensors]] lists written for either work.
+    # The gateway sends the WH65/WS69 array's as wh65batt (the driver: wh69_batt) and the
+    # WH26's as wh26batt. The driver puts either in outTempBatteryStatus, but MQTT has no
+    # signal strengths to tell them apart, so wh26batt keeps its own field: the page reads
+    # wh26_batt first.
+    for key, fields in (('wh65batt', ('wh69_batt', 'outTempBatteryStatus')),
+                        ('wh25batt', ('wh25_batt', 'inTempBatteryStatus')),
+                        ('wh26batt', 'wh26_batt'), ('wh57batt', ('wh57_batt', 'lightning_Batt')),
+                        ('co2_batt', ('wh45_batt', 'co2_Batt')),
+                        ('wh80batt', 'ws80_batt'), ('wh68batt', 'wh68_batt'),
+                        # the WH40's arrives in volts: the driver's wh40_volt
+                        ('wh40batt', ('wh40_volt', 'wh40_batt')),
                         ('wh85batt', 'ws85_batt'), ('wh90batt', 'ws90_batt'),
                         ('wh69batt', 'wh69_batt'), ('bgtbatt', 'bgtbatt'), ('console_batt', 'console_batt'),
                         ('ws85cap_volt', 'ws85cap_volt'), ('ws90cap_volt', 'ws90cap_volt')):
         add(key, fields)
     for i in range(1, 9):
-        add('batt%d' % i, 'batteryStatus%d' % i)
-        add('tf_batt%d' % i, 'soilTempBatt%d' % i)
-        add('leaf_batt%d' % i, 'leafWetBatt%d' % i)
+        add('batt%d' % i, ('wn31_ch%d_batt' % i, 'batteryStatus%d' % i))
+        # these arrive in volts
+        add('tf_batt%d' % i, ('wn34_ch%d_volt' % i, 'soilTempBatt%d' % i))
+        add('leaf_batt%d' % i, ('wn35_ch%d_batt' % i, 'leafWetBatt%d' % i))
     for i in range(1, 17):
-        add('soilbatt%d' % i, 'soilMoistBatt%d' % i)
+        add('soilbatt%d' % i, ('wh51_ch%d_volt' % i, 'soilMoistBatt%d' % i))
     for i in range(1, 5):
-        add('pm25batt%d' % i, 'pm25_Batt%d' % i)
-        add('leakbatt%d' % i, 'leak_Batt%d' % i)
-        add('ldsbatt%d' % i, 'ldsbatt%d' % i)
+        add('pm25batt%d' % i, ('wh41_ch%d_batt' % i, 'pm25_Batt%d' % i))
+        add('leakbatt%d' % i, ('wh55_ch%d_batt' % i, 'leak_Batt%d' % i))
+        add('ldsbatt%d' % i, ('wh54_ch%d_volt' % i, 'ldsbatt%d' % i))
     return m
 
 
